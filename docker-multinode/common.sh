@@ -37,7 +37,7 @@ kube::multinode::main(){
   fi
 
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
-  LATEST_STABLE_K8S_VERSION='v1.6.2-qiwi.1'
+  LATEST_STABLE_K8S_VERSION='v1.6.4-qiwi.1'
   K8S_VERSION=${K8S_VERSION:-${LATEST_STABLE_K8S_VERSION}}
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
@@ -223,7 +223,7 @@ kube::multinode::start_k8s() {
       --allow-privileged \
       --require-kubeconfig \
       --kubeconfig=/var/lib/kubelet/kubeconfig.yaml \
-      --cluster-dns=10.0.0.10 \
+      --cluster-dns=10.24.0.10 \
       --cluster-domain=cluster.local \
       ${CNI_ARGS} \
       ${CONTAINERIZED_FLAG} \
