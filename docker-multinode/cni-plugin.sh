@@ -29,17 +29,28 @@ kube::cni::ensure_docker_settings(){
     fi
 
     # If we can find MountFlags but not MountFlags=shared, set MountFlags to shared
-    if [[ ! -z $(grep "MountFlags" ${DOCKER_CONF}) && -z $(grep "MountFlags=shared" ${DOCKER_CONF}) ]]; then
+    if [[ ! -z $(grep "MountFlags" ${DOCKER_CONF}) && -z $(grep -w "MountFlags=shared" ${DOCKER_CONF}) ]]; then
+
+      DOCKER_SERVICE_DIR="/etc/systemd/system/docker.service.d"
+      SHARED_MOUNTS_CONF="${DOCKER_SERVICE_DIR}/shared-mounts.conf"
 
       # Make a dropin file for shared mounts, as /usr/lib isn't always writeable
-      mkdir -p /etc/systemd/system/docker.service.d
-      cat > /etc/systemd/system/docker.service.d/shared-mounts.conf <<EOF
+      mkdir -p ${DOCKER_SERVICE_DIR}
+      cat > "${SHARED_MOUNTS_CONF}.new" <<EOF
 [Service]
 MountFlags=
 MountFlags=shared
 EOF
-      restart=true
-      kube::log::status "systemd MountFlags option is now set to shared"
+      if [[ -f "${SHARED_MOUNTS_CONF}" && -z $(diff "${SHARED_MOUNTS_CONF}" "${SHARED_MOUNTS_CONF}.new") ]]; then
+        # shared mounts config file already exists and the same as new, don't restart docker
+        rm -f "${SHARED_MOUNTS_CONF}.new"
+      else
+        # install new file and restart docker
+        mv -f "${SHARED_MOUNTS_CONF}.new" "${SHARED_MOUNTS_CONF}"
+        restart=true
+
+        kube::log::status "systemd MountFlags option is now set to shared"
+      fi
     fi
 
     # Check if restart needed

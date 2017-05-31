@@ -33,8 +33,7 @@ kube::multinode::log_variables
 #kube::multinode::turndown
 
 if [[ ${USE_CNI} == "true" ]]; then
-#  kube::cni::ensure_docker_settings
-  :
+  kube::cni::ensure_docker_settings
 fi
 
 kube::multinode::start_k8s_worker
