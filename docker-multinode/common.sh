@@ -195,8 +195,15 @@ kube::multinode::turndown(){
   kube::log::status "Killing all kubernetes containers..."
 
   KUBE_ERE="kube_|k8s_"
-  if [[ $(docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' | wc -l) != 0 ]]; then
-    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs docker stop | xargs docker rm
+  if [[ $(docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | wc -l) != 0 ]]; then
+    # run twice for sure
+    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
+    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
+
+    # also remove stopped containers
+    docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs --no-run-if-empty docker rm
   fi
 
   if [[ -d /var/lib/kubelet ]]; then
