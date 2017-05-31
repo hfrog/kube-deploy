@@ -194,11 +194,9 @@ kube::multinode::turndown(){
 
   kube::log::status "Killing all kubernetes containers..."
 
-  if [[ $(docker ps | grep "kube_" | awk '{print $1}' | wc -l) != 0 ]]; then
-    docker rm -f $(docker ps | grep "kube_" | awk '{print $1}')
-  fi
-  if [[ $(docker ps | grep "k8s_" | awk '{print $1}' | wc -l) != 0 ]]; then
-    docker rm -f $(docker ps | grep "k8s_" | awk '{print $1}')
+  KUBE_ERE="kube_|k8s_"
+  if [[ $(docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' | wc -l) != 0 ]]; then
+    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs docker stop | xargs docker rm
   fi
 
   if [[ -d /var/lib/kubelet ]]; then
@@ -208,6 +206,8 @@ kube::multinode::turndown(){
       [nN]*)
         ;; # Do nothing
       *)
+        kube::log::status "Cleaning up /var/lib/kubelet directory..."
+
         # umount if there are mounts in /var/lib/kubelet
         if [[ ! -z $(mount | grep "/var/lib/kubelet" | awk '{print $3}') ]]; then
 
