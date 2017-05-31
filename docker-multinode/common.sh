@@ -16,7 +16,6 @@
 
 cd "$(dirname "${BASH_SOURCE}")"
 source cni-plugin.sh
-source docker-bootstrap.sh
 
 kube::multinode::main(){
 
@@ -49,23 +48,17 @@ kube::multinode::main(){
     ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
   fi
 
-  FLANNEL_VERSION=${FLANNEL_VERSION:-"v0.6.1"}
-  FLANNEL_IPMASQ=${FLANNEL_IPMASQ:-"true"}
-  FLANNEL_BACKEND=${FLANNEL_BACKEND:-"udp"}
-  FLANNEL_NETWORK=${FLANNEL_NETWORK:-"10.1.0.0/16"}
-
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
 
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
-  USE_CNI=${USE_CNI:-"false"}
-  USE_CONTAINERIZED=${USE_CONTAINERIZED:-"false"}
+  USE_CNI=${USE_CNI:-"true"}
+  USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
   CNI_ARGS=""
+  K8S_ADDONS_DIR="/srv/kubernetes_addons"
 
-  BOOTSTRAP_DOCKER_SOCK="unix:///var/run/docker-bootstrap.sock"
-  BOOTSTRAP_DOCKER_PARAM="-H ${BOOTSTRAP_DOCKER_SOCK}"
   ETCD_NET_PARAM="--net host"
 
   if [[ ${USE_CONTAINERIZED} == "true" ]]; then
@@ -94,12 +87,8 @@ kube::multinode::main(){
       -v /opt/cni/bin:/opt/cni/bin:rw"
   fi
 
-  # Paths
-  FLANNEL_SUBNET_DIR=${FLANNEL_SUBNET_DIR:-/run/flannel}
-
   if [[ ${USE_CNI} == "true" ]]; then
 
-    BOOTSTRAP_DOCKER_PARAM=""
     ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
     CNI_ARGS="\
       --network-plugin=cni \
@@ -111,15 +100,10 @@ kube::multinode::main(){
 # Ensure everything is OK, docker is running and we're root
 kube::multinode::log_variables() {
 
-  kube::helpers::parse_version ${K8S_VERSION}
-
   # Output the value of the variables
   kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
+  kube::log::status "K8S_ADDONS_DIR is set to: ${K8S_ADDONS_DIR}"
   kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
-  kube::log::status "FLANNEL_VERSION is set to: ${FLANNEL_VERSION}"
-  kube::log::status "FLANNEL_IPMASQ is set to: ${FLANNEL_IPMASQ}"
-  kube::log::status "FLANNEL_NETWORK is set to: ${FLANNEL_NETWORK}"
-  kube::log::status "FLANNEL_BACKEND is set to: ${FLANNEL_BACKEND}"
   kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
   kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
   kube::log::status "ARCH is set to: ${ARCH}"
@@ -134,7 +118,7 @@ kube::multinode::start_etcd() {
 
   kube::log::status "Launching etcd..."
 
-  docker ${BOOTSTRAP_DOCKER_PARAM} run -d \
+  docker run -d \
     --name kube_etcd_$(kube::helpers::small_sha) \
     --restart=${RESTART_POLICY} \
     ${ETCD_NET_PARAM} \
@@ -159,49 +143,6 @@ kube::multinode::start_etcd() {
   done
 
   sleep 2
-}
-
-# Start flannel in docker bootstrap, both for master and worker
-kube::multinode::start_flannel() {
-
-  kube::log::status "Launching flannel..."
-
-  # Set flannel net config (when running on master)
-  if [[ "${MASTER_IP}" == "localhost" ]]; then
-    curl -sSL http://localhost:2379/v2/keys/coreos.com/network/config -XPUT \
-      -d value="{ \"Network\": \"${FLANNEL_NETWORK}\", \"Backend\": {\"Type\": \"${FLANNEL_BACKEND}\"}}"
-  fi
-
-  # Make sure that a subnet file doesn't already exist
-  rm -f ${FLANNEL_SUBNET_DIR}/subnet.env
-
-  docker ${BOOTSTRAP_DOCKER_PARAM} run -d \
-    --name kube_flannel_$(kube::helpers::small_sha) \
-    --restart=${RESTART_POLICY} \
-    --net=host \
-    --privileged \
-    -v /dev/net:/dev/net \
-    -v ${FLANNEL_SUBNET_DIR}:${FLANNEL_SUBNET_DIR} \
-    quay.io/coreos/flannel:${FLANNEL_VERSION}-${ARCH} \
-    /opt/bin/flanneld \
-      --etcd-endpoints=http://${MASTER_IP}:2379 \
-      --ip-masq="${FLANNEL_IPMASQ}" \
-      --iface="${IP_ADDRESS}"
-
-  # Wait for the flannel subnet.env file to be created instead of a timeout. This is faster and more reliable
-  local SECONDS=0
-  while [[ ! -f ${FLANNEL_SUBNET_DIR}/subnet.env ]]; do
-    ((SECONDS++))
-    if [[ ${SECONDS} == ${TIMEOUT_FOR_SERVICES} ]]; then
-      kube::log::fatal "flannel failed to start. Exiting..."
-    fi
-    sleep 1
-  done
-
-  source ${FLANNEL_SUBNET_DIR}/subnet.env
-
-  kube::log::status "FLANNEL_SUBNET is set to: ${FLANNEL_SUBNET}"
-  kube::log::status "FLANNEL_MTU is set to: ${FLANNEL_MTU}"
 }
 
 # Common kubelet runner
@@ -233,6 +174,9 @@ kube::multinode::start_k8s() {
 
 # Start kubelet first and then the master components as pods
 kube::multinode::start_k8s_master() {
+  kube::log::status "Cleaning up ${K8S_ADDONS_DIR}"
+  rm -fr ${K8S_ADDONS_DIR}
+
   kube::log::status "Launching Kubernetes master components..."
   KUBELET_ARGS="--pod-manifest-path=/etc/kubernetes/manifests-multi"
   kube::multinode::start_k8s
@@ -245,34 +189,8 @@ kube::multinode::start_k8s_worker() {
   kube::multinode::start_k8s
 }
 
-# Start kube-proxy in a container, for a worker node
-kube::multinode::start_k8s_worker_proxy() {
-
-  kube::log::status "Launching kube-proxy..."
-  docker run -d \
-    --net=host \
-    --privileged \
-    --name kube_proxy_$(kube::helpers::small_sha) \
-    --restart=${RESTART_POLICY} \
-    dcr.qiwi.com/hyperkube-${ARCH}:${K8S_VERSION} \
-    /hyperkube proxy \
-        --kubeconfig=/var/lib/kubelet/kubeconfig.yaml \
-        --v=2
-}
-
 # Turndown the local cluster
 kube::multinode::turndown(){
-
-  # Check if docker bootstrap is running
-  DOCKER_BOOTSTRAP_PID=$(ps aux | grep ${BOOTSTRAP_DOCKER_SOCK} | grep -v "grep" | awk '{print $2}')
-  if [[ ! -z ${DOCKER_BOOTSTRAP_PID} ]]; then
-
-    kube::log::status "Killing docker bootstrap..."
-
-    # Kill the bootstrap docker daemon and it's containers
-    docker -H ${BOOTSTRAP_DOCKER_SOCK} rm -f $(docker -H ${BOOTSTRAP_DOCKER_SOCK} ps -q) >/dev/null 2>/dev/null
-    kill ${DOCKER_BOOTSTRAP_PID}
-  fi
 
   kube::log::status "Killing all kubernetes containers..."
 
@@ -307,13 +225,6 @@ kube::multinode::turndown(){
   fi
 }
 
-kube::multinode::delete_bridge() {
-  if [[ ! -z $(ip link | grep "$1") ]]; then
-    ip link set $1 down
-    ip link del $1
-  fi
-}
-
 # Make shared kubelet directory
 kube::multinode::make_shared_kubelet_dir() {
 
@@ -337,11 +248,6 @@ kube::multinode::create_kubeconfig(){
 # Check if a command is valid
 kube::helpers::command_exists() {
   command -v "$@" > /dev/null 2>&1
-}
-
-# Backup the current file
-kube::helpers::backup_file(){
-  cp -f ${1} ${1}.backup
 }
 
 # Returns five "random" chars
@@ -379,21 +285,6 @@ kube::helpers::host_platform() {
       kube::log::fatal "Unsupported host arch. Must be x86_64, arm, arm64 or ppc64le.";;
   esac
   echo "${host_os}/${host_arch}"
-}
-
-kube::helpers::parse_version() {
-  local -r version_regex="^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(beta|alpha|qiwi)\\.(0|[1-9][0-9]*))?$"
-  local -r version="${1-}"
-  [[ "${version}" =~ ${version_regex} ]] || {
-    kube::log::fatal "Invalid release version: '${version}', must match regex ${version_regex}"
-    return 1
-  }
-  VERSION_MAJOR="${BASH_REMATCH[1]}"
-  VERSION_MINOR="${BASH_REMATCH[2]}"
-  VERSION_PATCH="${BASH_REMATCH[3]}"
-  VERSION_EXTRA="${BASH_REMATCH[4]}"
-  VERSION_PRERELEASE="${BASH_REMATCH[5]}"
-  VERSION_PRERELEASE_REV="${BASH_REMATCH[6]}"
 }
 
 # Print a status line. Formatted to show up in a stream of output.

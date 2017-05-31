@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+USE_CNI=${USE_CNI:-"true"}
+USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
+
 # Source common.sh
 source $(dirname "${BASH_SOURCE}")/common.sh
 
@@ -28,19 +31,7 @@ kube::multinode::log_variables
 
 if [[ ${USE_CNI} == "true" ]]; then
 #  kube::cni::ensure_docker_settings
-
   kube::multinode::start_etcd
-
-#  kube::multinode::start_flannel
-  :
-else
-  kube::bootstrap::bootstrap_daemon
-
-  kube::multinode::start_etcd
-
-  kube::multinode::start_flannel
-
-  kube::bootstrap::restart_docker
 fi
 
 kube::multinode::start_k8s_master
