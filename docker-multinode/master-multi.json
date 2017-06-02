@@ -14,7 +14,7 @@
       "command": [
         "/hyperkube",
         "controller-manager",
-        "--master=127.0.0.1:8080",
+        "--kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig.yaml",
         "--service-account-private-key-file=/srv/kubernetes/server.key",
         "--root-ca-file=/srv/kubernetes/ca.crt",
         "--min-resync-period=3m",
@@ -74,7 +74,7 @@
       "command": [
         "/hyperkube",
         "scheduler",
-        "--master=http://192.168.209.138:8080",
+        "--kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig.yaml",
         "--leader-elect=true",
         "--v=2"
       ],
