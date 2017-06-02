@@ -167,7 +167,7 @@ kube::multinode::start_k8s() {
       ${KUBELET_ARGS} \
       --allow-privileged \
       --require-kubeconfig \
-      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig-kubelet.yaml \
+      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig-http.yaml \
       --cluster-dns=${SERVICE_NETWORK}.10 \
       --cluster-domain=cluster.local \
       ${CNI_ARGS} \
@@ -279,7 +279,7 @@ kube::multinode::create_manifest(){
 kube::multinode::create_kubeconfig(){
   # Create a kubeconfig.yaml file for the proxy daemonset
   mkdir -p ${K8S_KUBECONFIG_DIR}
-  for f in kubeconfig.yaml kubeconfig-kubelet.yaml; do
+  for f in kubeconfig.yaml kubeconfig-http.yaml; do
     kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$f
   done
 }
