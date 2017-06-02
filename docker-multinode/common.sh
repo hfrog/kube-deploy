@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim: set sw=2 :
 
 # Copyright 2016 The Kubernetes Authors All rights reserved.
 #
@@ -38,15 +39,13 @@ kube::multinode::main(){
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
   LATEST_STABLE_K8S_VERSION='v1.6.4-qiwi.1'
   K8S_VERSION=${K8S_VERSION:-${LATEST_STABLE_K8S_VERSION}}
+  REGISTRY='dcr.qiwi.com'
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
 
-  if [[ ${ARCH} == "arm" ]]; then
-    ETCD_VERSION=${ETCD_VERSION:-"2.2.5"}
-  else
-    ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
-  fi
+  ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
+  ETCD_NET_PARAM="--net host"
 
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
 
@@ -58,16 +57,17 @@ kube::multinode::main(){
   USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
   CNI_ARGS=""
   K8S_ADDONS_DIR="/srv/kubernetes_addons"
-
-  ETCD_NET_PARAM="--net host"
+  K8S_MANIFEST_DIR="/srv/kubernetes_manifest"
+  K8S_KUBELET_DIR="/var/lib/kubelet"
+  K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
 
   if [[ ${USE_CONTAINERIZED} == "true" ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
-    KUBELET_MOUNT="-v /var/lib/kubelet:/var/lib/kubelet:slave"
+    KUBELET_MOUNT="-v ${K8S_KUBELET_DIR}:${K8S_KUBELET_DIR}:slave"
     CONTAINERIZED_FLAG="--containerized"
   else
     ROOTFS_MOUNT=""
-    KUBELET_MOUNT="-v /var/lib/kubelet:/var/lib/kubelet:shared"
+    KUBELET_MOUNT="-v ${K8S_KUBELET_DIR}:${K8S_KUBELET_DIR}:shared"
     CONTAINERIZED_FLAG=""
   fi
 
@@ -85,9 +85,6 @@ kube::multinode::main(){
       ${KUBELET_MOUNTS} \
       -v /etc/cni/net.d:/etc/cni/net.d:rw \
       -v /opt/cni/bin:/opt/cni/bin:rw"
-  fi
-
-  if [[ ${USE_CNI} == "true" ]]; then
 
     ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
     CNI_ARGS="\
@@ -103,6 +100,9 @@ kube::multinode::log_variables() {
   # Output the value of the variables
   kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
   kube::log::status "K8S_ADDONS_DIR is set to: ${K8S_ADDONS_DIR}"
+  kube::log::status "K8S_MANIFEST_DIR is set to: ${K8S_MANIFEST_DIR}"
+  kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
+  kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
   kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
   kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
   kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
@@ -122,7 +122,7 @@ kube::multinode::start_etcd() {
     --name kube_etcd_$(kube::helpers::small_sha) \
     --restart=${RESTART_POLICY} \
     ${ETCD_NET_PARAM} \
-    -v /var/lib/kubelet/etcd:/var/etcd \
+    -v ${K8S_KUBELET_DIR}/etcd:/var/etcd \
     gcr.io/google_containers/etcd-${ARCH}:${ETCD_VERSION} \
     /usr/local/bin/etcd \
       --initial-advertise-peer-urls=http://192.168.209.138:2379 \
@@ -158,12 +158,12 @@ kube::multinode::start_k8s() {
     --restart=${RESTART_POLICY} \
     --name kube_kubelet_$(kube::helpers::small_sha) \
     ${KUBELET_MOUNTS} \
-    dcr.qiwi.com/hyperkube-${ARCH}:${K8S_VERSION} \
+    ${REGISTRY}/hyperkube-${ARCH}:${K8S_VERSION} \
     /hyperkube kubelet \
       ${KUBELET_ARGS} \
       --allow-privileged \
       --require-kubeconfig \
-      --kubeconfig=/var/lib/kubelet/kubeconfig.yaml \
+      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig.yaml \
       --cluster-dns=10.24.0.10 \
       --cluster-domain=cluster.local \
       ${CNI_ARGS} \
@@ -174,11 +174,14 @@ kube::multinode::start_k8s() {
 
 # Start kubelet first and then the master components as pods
 kube::multinode::start_k8s_master() {
-  kube::log::status "Cleaning up ${K8S_ADDONS_DIR}"
-  rm -fr ${K8S_ADDONS_DIR}
+  kube::multinode::create_addons
+  kube::multinode::create_manifest
 
   kube::log::status "Launching Kubernetes master components..."
   KUBELET_ARGS="--pod-manifest-path=/etc/kubernetes/manifests-multi"
+  KUBELET_MOUNTS="\
+        ${KUBELET_MOUNTS} \
+        -v ${K8S_MANIFEST_DIR}:/etc/kubernetes/manifests-multi:ro"
   kube::multinode::start_k8s
 }
 
@@ -206,27 +209,27 @@ kube::multinode::turndown(){
     docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs --no-run-if-empty docker rm
   fi
 
-  if [[ -d /var/lib/kubelet ]]; then
-    read -p "Do you want to clean /var/lib/kubelet? [Y/n] " clean_kubelet_dir
+  if [[ -d "${K8S_KUBELET_DIR}" ]]; then
+    read -p "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n] " clean_kubelet_dir
 
     case $clean_kubelet_dir in
       [nN]*)
         ;; # Do nothing
       *)
-        kube::log::status "Cleaning up /var/lib/kubelet directory..."
+        kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
 
-        # umount if there are mounts in /var/lib/kubelet
-        if [[ ! -z $(mount | grep "/var/lib/kubelet" | awk '{print $3}') ]]; then
+        # umount if there are mounts in ${K8S_KUBELET_DIR}
+        if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" | awk '{print $3}') ]]; then
 
           # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
-          mount | grep "/var/lib/kubelet/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          mount | grep "/var/lib/kubelet/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          umount /var/lib/kubelet 1>/dev/null 2>/dev/null
-          umount /var/lib/kubelet 1>/dev/null 2>/dev/null
+          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
         fi
 
         # Delete the directory
-        rm -rf /var/lib/kubelet
+        rm -rf "${K8S_KUBELET_DIR}"
         ;;
     esac
   fi
@@ -237,19 +240,33 @@ kube::multinode::make_shared_kubelet_dir() {
 
   # This only has to be done when the host doesn't use systemd
   if ! kube::helpers::command_exists systemctl; then
-    mkdir -p /var/lib/kubelet
-    mount --bind /var/lib/kubelet /var/lib/kubelet
-    mount --make-shared /var/lib/kubelet
+    mkdir -p "${K8S_KUBELET_DIR}"
+    mount --bind "${K8S_KUBELET_DIR}" "${K8S_KUBELET_DIR}"
+    mount --make-shared "${K8S_KUBELET_DIR}"
 
-    kube::log::status "Mounted /var/lib/kubelet with shared propagnation"
+    kube::log::status "Mounted ${K8S_KUBELET_DIR} with shared propagnation"
   fi
+}
+
+kube::multinode::create_addons(){
+  kube::log::status "Creating addons dir ${K8S_ADDONS_DIR}"
+  rm -fr ${K8S_ADDONS_DIR}
+#  mkdir -p ${K8S_ADDONS_DIR}
+}
+
+kube::multinode::create_manifest(){
+  kube::log::status "Creating manifest dir ${K8S_MANIFEST_DIR}"
+  mkdir -p ${K8S_MANIFEST_DIR}
+  for f in master-multi.json addon-manager-multinode.json; do
+    sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" -e "s/VERSION/${K8S_VERSION}/g" \
+        $f > ${K8S_MANIFEST_DIR}/$f
+  done
 }
 
 kube::multinode::create_kubeconfig(){
   # Create a kubeconfig.yaml file for the proxy daemonset
-  mkdir -p /var/lib/kubelet/kubeconfig
-  sed -e "s|MASTER_IP|${MASTER_IP}|g" kubeconfig.yaml > /var/lib/kubelet/kubeconfig/kubeconfig.yaml
-  cp /var/lib/kubelet/kubeconfig/kubeconfig.yaml /var/lib/kubelet/kubeconfig.yaml
+  mkdir -p ${K8S_KUBECONFIG_DIR}
+  sed -e "s/MASTER_IP/${MASTER_IP}/g" kubeconfig.yaml > ${K8S_KUBECONFIG_DIR}/kubeconfig.yaml
 }
 
 # Check if a command is valid
