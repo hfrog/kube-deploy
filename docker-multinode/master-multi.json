@@ -42,7 +42,7 @@
         "apiserver",
         "--service-cluster-ip-range=10.24.0.1/24",
         "--insecure-bind-address=0.0.0.0",
-        "--etcd-servers=http://127.0.0.1:2379",
+        "--etcd-servers=http://ETCD_IP:2379",
         "--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds",
         "--client-ca-file=/srv/kubernetes/ca.crt",
         "--basic-auth-file=/srv/kubernetes/basic_auth.csv",

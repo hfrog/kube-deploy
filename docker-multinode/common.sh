@@ -46,6 +46,7 @@ kube::multinode::main(){
 
   ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
   ETCD_NET_PARAM="--net host"
+  ETCD_IP="${MASTER_IP}"
 
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
 
@@ -104,6 +105,7 @@ kube::multinode::log_variables() {
   kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
   kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
   kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
+  kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
   kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
   kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
   kube::log::status "ARCH is set to: ${ARCH}"
@@ -125,16 +127,16 @@ kube::multinode::start_etcd() {
     -v ${K8S_KUBELET_DIR}/etcd:/var/etcd \
     gcr.io/google_containers/etcd-${ARCH}:${ETCD_VERSION} \
     /usr/local/bin/etcd \
-      --initial-advertise-peer-urls=http://192.168.209.138:2379 \
-      --initial-cluster=default=http://192.168.209.138:2379 \
+      --initial-advertise-peer-urls=http://${ETCD_IP}:2379 \
+      --initial-cluster=default=http://${ETCD_IP}:2379 \
       --listen-client-urls=http://0.0.0.0:2379 \
-      --advertise-client-urls=http://192.168.209.138:2379 \
+      --advertise-client-urls=http://${ETCD_IP}:2379 \
       --listen-peer-urls=http://0.0.0.0:2380 \
       --data-dir=/var/etcd/data
 
   # Wait for etcd to come up
   local SECONDS=0
-  while [[ $(curl -fsSL http://localhost:2379/health 2>&1 1>/dev/null; echo $?) != 0 ]]; do
+  while [[ $(curl -fsSL http://${ETCD_IP}:2379/health 2>&1 1>/dev/null; echo $?) != 0 ]]; do
     ((SECONDS++))
     if [[ ${SECONDS} == ${TIMEOUT_FOR_SERVICES} ]]; then
       kube::log::fatal "etcd failed to start. Exiting..."
@@ -258,7 +260,8 @@ kube::multinode::create_manifest(){
   kube::log::status "Creating manifest dir ${K8S_MANIFEST_DIR}"
   mkdir -p ${K8S_MANIFEST_DIR}
   for f in master-multi.json addon-manager-multinode.json; do
-    sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" -e "s/VERSION/${K8S_VERSION}/g" \
+    sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
+        -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
         $f > ${K8S_MANIFEST_DIR}/$f
   done
 }

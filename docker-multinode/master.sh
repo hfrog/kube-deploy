@@ -20,8 +20,11 @@ USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
 # Source common.sh
 source $(dirname "${BASH_SOURCE}")/common.sh
 
-# Set MASTER_IP to localhost when deploying a master
-MASTER_IP=localhost
+# Make sure MASTER_IP is properly set
+if [[ -z ${MASTER_IP} ]]; then
+    echo "Please export MASTER_IP in your env"
+    exit 1
+fi
 
 kube::multinode::main
 
