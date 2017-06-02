@@ -25,7 +25,8 @@
       "volumeMounts": [
         {
           "name": "data",
-          "mountPath": "/srv/kubernetes"
+          "mountPath": "/srv/kubernetes",
+          "readOnly": true
         },
         {
           "name": "kubeconfig",
@@ -57,7 +58,8 @@
       "volumeMounts": [
         {
           "name": "data",
-          "mountPath": "/srv/kubernetes"
+          "mountPath": "/srv/kubernetes",
+          "readOnly": true
         },
         {
           "name": "kubeconfig",
@@ -72,11 +74,16 @@
       "command": [
         "/hyperkube",
         "scheduler",
-        "--master=127.0.0.1:8080",
+        "--master=http://192.168.209.138:8080",
         "--leader-elect=true",
         "--v=2"
       ],
       "volumeMounts": [
+        {
+          "name": "data",
+          "mountPath": "/srv/kubernetes",
+          "readOnly": true
+        },
         {
           "name": "kubeconfig",
           "mountPath": "/var/lib/kubelet/kubeconfig",
