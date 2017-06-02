@@ -52,6 +52,7 @@ kube::multinode::main(){
 
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
+  SERVICE_NETWORK="10.24.0"
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
   USE_CNI=${USE_CNI:-"true"}
@@ -108,6 +109,7 @@ kube::multinode::log_variables() {
   kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
   kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
   kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
+  kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
   kube::log::status "ARCH is set to: ${ARCH}"
   kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
   kube::log::status "USE_CNI is set to: ${USE_CNI}"
@@ -165,8 +167,8 @@ kube::multinode::start_k8s() {
       ${KUBELET_ARGS} \
       --allow-privileged \
       --require-kubeconfig \
-      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig.yaml \
-      --cluster-dns=10.24.0.10 \
+      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig-kubelet.yaml \
+      --cluster-dns=${SERVICE_NETWORK}.10 \
       --cluster-domain=cluster.local \
       ${CNI_ARGS} \
       ${CONTAINERIZED_FLAG} \
@@ -250,26 +252,36 @@ kube::multinode::make_shared_kubelet_dir() {
   fi
 }
 
+kube::multinode::expand_vars(){
+    sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
+        -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s/MASTER_IP/${MASTER_IP}/g" \
+        $1
+}
+
 kube::multinode::create_addons(){
   kube::log::status "Creating addons dir ${K8S_ADDONS_DIR}"
   rm -fr ${K8S_ADDONS_DIR}
-#  mkdir -p ${K8S_ADDONS_DIR}
+  mkdir -p ${K8S_ADDONS_DIR}
+  for f in addons/*; do
+    kube::multinode::expand_vars $f > ${K8S_ADDONS_DIR}/$(basename $f)
+  done
 }
 
 kube::multinode::create_manifest(){
   kube::log::status "Creating manifest dir ${K8S_MANIFEST_DIR}"
   mkdir -p ${K8S_MANIFEST_DIR}
   for f in master-multi.json addon-manager-multinode.json; do
-    sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
-        -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        $f > ${K8S_MANIFEST_DIR}/$f
+    kube::multinode::expand_vars $f > ${K8S_MANIFEST_DIR}/$f
   done
 }
 
 kube::multinode::create_kubeconfig(){
   # Create a kubeconfig.yaml file for the proxy daemonset
   mkdir -p ${K8S_KUBECONFIG_DIR}
-  sed -e "s/MASTER_IP/${MASTER_IP}/g" kubeconfig.yaml > ${K8S_KUBECONFIG_DIR}/kubeconfig.yaml
+  for f in kubeconfig.yaml kubeconfig-kubelet.yaml; do
+    kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$f
+  done
 }
 
 # Check if a command is valid
