@@ -18,7 +18,7 @@
 cd "$(dirname "${BASH_SOURCE}")"
 source cni-plugin.sh
 
-kube::multinode::main(){
+kube::multinode::main() {
 
   # Require root
   if [[ "$(id -u)" != "0" ]]; then
@@ -188,6 +188,7 @@ kube::multinode::start_k8s_master() {
   kube::multinode::create_addons
   kube::multinode::create_manifest
   kube::multinode::create_basic_auth
+  kube::multinode::create_worker_certs
   kube::multinode::create_master_certs
 
   kube::log::status "Launching Kubernetes master components..."
@@ -200,6 +201,8 @@ kube::multinode::start_k8s_master() {
 
 # Start kubelet in a container, for a worker node
 kube::multinode::start_k8s_worker() {
+  kube::multinode::create_worker_certs
+
   kube::log::status "Launching Kubernetes worker components..."
   KUBELET_ARGS=""
   kube::multinode::start_k8s
@@ -218,7 +221,7 @@ kube::multinode::make_shared_kubelet_dir() {
   fi
 }
 
-kube::multinode::expand_vars(){
+kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
         -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
@@ -226,7 +229,7 @@ kube::multinode::expand_vars(){
         $1
 }
 
-kube::multinode::create_addons(){
+kube::multinode::create_addons() {
   kube::log::status "Creating addons dir ${K8S_ADDONS_DIR}"
   rm -fr ${K8S_ADDONS_DIR}
   mkdir -p ${K8S_ADDONS_DIR}
@@ -235,7 +238,7 @@ kube::multinode::create_addons(){
   done
 }
 
-kube::multinode::create_manifest(){
+kube::multinode::create_manifest() {
   kube::log::status "Creating manifest dir ${K8S_MANIFEST_DIR}"
   mkdir -p ${K8S_MANIFEST_DIR}
   for f in manifests/*; do
@@ -243,7 +246,7 @@ kube::multinode::create_manifest(){
   done
 }
 
-kube::multinode::create_kubeconfig(){
+kube::multinode::create_kubeconfig() {
   mkdir -p ${K8S_KUBECONFIG_DIR}
   for f in kubeconfig/*; do
     kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
@@ -260,23 +263,34 @@ kube::multinode::create_basic_auth() {
   done
 }
 
-kube::multinode::create_master_certs() {
-  mkdir -p ${K8S_KUBESRV_DIR}
-  for f in ${CERTS_DIR}/*; do
-    dst=${K8S_KUBESRV_DIR}/$(basename $f)
-    if [ ! -f "${dst}" ]; then
-      cp -f $f "${dst}"
-      chmod 600 "${dst}"
-    fi
-  done
-
-  # check for files existence
-  for f in ca.crt kubernetes-master.{crt,key} kubecfg.{crt,key} ${IP_ADDRESS}.{crt,key} \
-        ${IP_ADDRESS}-proxy.{crt,key} ${IP_ADDRESS}-kubelet.{crt,key} addon-manager.{crt,key}; do
-    file=${K8S_KUBESRV_DIR}/$f
-    if [ ! -f "${file}" ]; then
+kube::multinode::create_cert() {
+  file="$1"
+  dstfile=${K8S_KUBESRV_DIR}/$file
+  if [ ! -f "${dstfile}" ]; then
+    # there is no cert/key file, try to copy it
+    srcfile=${CERTS_DIR}/$file
+    if [ -f "${srcfile}" ]; then
+      cp -f "${srcfile}" "${dstfile}"
+      chmod 600 "${dstfile}"
+    else
       kube::log::fatal "There is no file ${file}, please fix it"
     fi
+  fi
+}
+
+kube::multinode::create_worker_certs() {
+  mkdir -p ${K8S_KUBESRV_DIR}
+
+  for f in ca.crt ${IP_ADDRESS}-{proxy,kubelet}.{crt,key}; do
+    kube::multinode::create_cert $f
+  done
+}
+
+kube::multinode::create_master_certs() {
+  mkdir -p ${K8S_KUBESRV_DIR}
+
+  for f in {kubernetes-master,kubecfg,addon-manager}.{crt,key}; do
+    kube::multinode::create_cert $f
   done
 }
 
@@ -286,7 +300,7 @@ kube::helpers::command_exists() {
 }
 
 # Returns five "random" chars
-kube::helpers::small_sha(){
+kube::helpers::small_sha() {
   date | md5sum | cut -c-5
 }
 
@@ -323,7 +337,7 @@ kube::helpers::host_platform() {
 }
 
 # Turndown the local cluster
-kube::multinode::turndown(){
+kube::multinode::turndown() {
 
   kube::log::status "Killing all kubernetes containers..."
 
