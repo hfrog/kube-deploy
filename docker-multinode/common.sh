@@ -271,8 +271,8 @@ kube::multinode::create_addons(){
 kube::multinode::create_manifest(){
   kube::log::status "Creating manifest dir ${K8S_MANIFEST_DIR}"
   mkdir -p ${K8S_MANIFEST_DIR}
-  for f in master-multi.json addon-manager-multinode.json; do
-    kube::multinode::expand_vars $f > ${K8S_MANIFEST_DIR}/$f
+  for f in manifests/*; do
+    kube::multinode::expand_vars $f > ${K8S_MANIFEST_DIR}/$(basename $f)
   done
 }
 
