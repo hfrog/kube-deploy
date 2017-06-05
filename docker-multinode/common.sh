@@ -279,8 +279,8 @@ kube::multinode::create_manifest(){
 kube::multinode::create_kubeconfig(){
   # Create a kubeconfig.yaml file for the proxy daemonset
   mkdir -p ${K8S_KUBECONFIG_DIR}
-  for f in kubeconfig.yaml kubeconfig-http.yaml; do
-    kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$f
+  for f in kubeconfig/*; do
+    kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
   done
 }
 
