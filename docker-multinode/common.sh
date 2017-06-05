@@ -58,10 +58,14 @@ kube::multinode::main(){
   USE_CNI=${USE_CNI:-"true"}
   USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
   CNI_ARGS=""
+
+  K8S_KUBESRV_DIR="/srv/kubernetes"
   K8S_ADDONS_DIR="/srv/kubernetes_addons"
   K8S_MANIFEST_DIR="/srv/kubernetes_manifest"
   K8S_KUBELET_DIR="/var/lib/kubelet"
   K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
+
+  CERTS_DIR="/root/certs"
 
   if [[ ${USE_CONTAINERIZED} == "true" ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
@@ -80,7 +84,8 @@ kube::multinode::main(){
     -v /run:/run:rw \
     -v /var/lib/docker:/var/lib/docker:rw \
     ${KUBELET_MOUNT} \
-    -v /var/log/containers:/var/log/containers:rw"
+    -v /var/log/containers:/var/log/containers:rw \
+    -v ${K8S_KUBESRV_DIR}:${K8S_KUBESRV_DIR}:ro"
 
   if [[ ${USE_CNI} == "true" ]]; then
     KUBELET_MOUNTS="\
@@ -101,10 +106,12 @@ kube::multinode::log_variables() {
 
   # Output the value of the variables
   kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
+  kube::log::status "K8S_KUBESRV_DIR is set to: ${K8S_KUBESRV_DIR}"
   kube::log::status "K8S_ADDONS_DIR is set to: ${K8S_ADDONS_DIR}"
   kube::log::status "K8S_MANIFEST_DIR is set to: ${K8S_MANIFEST_DIR}"
   kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
   kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
+  kube::log::status "CERTS_DIR is set to: ${CERTS_DIR}"
   kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
   kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
   kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
@@ -167,7 +174,7 @@ kube::multinode::start_k8s() {
       ${KUBELET_ARGS} \
       --allow-privileged \
       --require-kubeconfig \
-      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig-http.yaml \
+      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig-kubelet.yaml \
       --cluster-dns=${SERVICE_NETWORK}.10 \
       --cluster-domain=cluster.local \
       ${CNI_ARGS} \
@@ -180,6 +187,8 @@ kube::multinode::start_k8s() {
 kube::multinode::start_k8s_master() {
   kube::multinode::create_addons
   kube::multinode::create_manifest
+  kube::multinode::create_basic_auth
+  kube::multinode::create_master_certs
 
   kube::log::status "Launching Kubernetes master components..."
   KUBELET_ARGS="--pod-manifest-path=/etc/kubernetes/manifests-multi"
@@ -194,49 +203,6 @@ kube::multinode::start_k8s_worker() {
   kube::log::status "Launching Kubernetes worker components..."
   KUBELET_ARGS=""
   kube::multinode::start_k8s
-}
-
-# Turndown the local cluster
-kube::multinode::turndown(){
-
-  kube::log::status "Killing all kubernetes containers..."
-
-  KUBE_ERE="kube_|k8s_"
-  if [[ $(docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | wc -l) != 0 ]]; then
-    # run twice for sure
-    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
-        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
-    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
-        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
-
-    # also remove stopped containers
-    docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs --no-run-if-empty docker rm
-  fi
-
-  if [[ -d "${K8S_KUBELET_DIR}" ]]; then
-    read -p "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n] " clean_kubelet_dir
-
-    case $clean_kubelet_dir in
-      [nN]*)
-        ;; # Do nothing
-      *)
-        kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
-
-        # umount if there are mounts in ${K8S_KUBELET_DIR}
-        if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" | awk '{print $3}') ]]; then
-
-          # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
-          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
-          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
-        fi
-
-        # Delete the directory
-        rm -rf "${K8S_KUBELET_DIR}"
-        ;;
-    esac
-  fi
 }
 
 # Make shared kubelet directory
@@ -255,7 +221,8 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars(){
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s/MASTER_IP/${MASTER_IP}/g" \
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
+        -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
         $1
 }
 
@@ -277,10 +244,39 @@ kube::multinode::create_manifest(){
 }
 
 kube::multinode::create_kubeconfig(){
-  # Create a kubeconfig.yaml file for the proxy daemonset
   mkdir -p ${K8S_KUBECONFIG_DIR}
   for f in kubeconfig/*; do
     kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
+  done
+}
+
+kube::multinode::create_basic_auth() {
+  mkdir -p ${K8S_KUBESRV_DIR}
+  for f in basic_auth.csv; do
+    if [ ! -f ${K8S_KUBESRV_DIR}/$f ]; then
+      kube::multinode::expand_vars $f > ${K8S_KUBESRV_DIR}/$f
+      chmod 600 ${K8S_KUBESRV_DIR}/$f
+    fi
+  done
+}
+
+kube::multinode::create_master_certs() {
+  mkdir -p ${K8S_KUBESRV_DIR}
+  for f in ${CERTS_DIR}/*; do
+    dst=${K8S_KUBESRV_DIR}/$(basename $f)
+    if [ ! -f "${dst}" ]; then
+      cp -f $f "${dst}"
+      chmod 600 "${dst}"
+    fi
+  done
+
+  # check for files existence
+  for f in ca.crt kubernetes-master.{crt,key} kubecfg.{crt,key} ${IP_ADDRESS}.{crt,key} \
+        ${IP_ADDRESS}-proxy.{crt,key} ${IP_ADDRESS}-kubelet.{crt,key} addon-manager.{crt,key}; do
+    file=${K8S_KUBESRV_DIR}/$f
+    if [ ! -f "${file}" ]; then
+      kube::log::fatal "There is no file ${file}, please fix it"
+    fi
   done
 }
 
@@ -326,6 +322,49 @@ kube::helpers::host_platform() {
   echo "${host_os}/${host_arch}"
 }
 
+# Turndown the local cluster
+kube::multinode::turndown(){
+
+  kube::log::status "Killing all kubernetes containers..."
+
+  KUBE_ERE="kube_|k8s_"
+  if [[ $(docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | wc -l) != 0 ]]; then
+    # run twice for sure
+    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
+    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
+
+    # also remove stopped containers
+    docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs --no-run-if-empty docker rm
+  fi
+
+  if [[ -d "${K8S_KUBELET_DIR}" ]]; then
+    read -p "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n] " clean_kubelet_dir
+
+    case $clean_kubelet_dir in
+      [nN]*)
+        ;; # Do nothing
+      *)
+        kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
+
+        # umount if there are mounts in ${K8S_KUBELET_DIR}
+        if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" | awk '{print $3}') ]]; then
+
+          # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
+          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+        fi
+
+        # Delete the directory
+        rm -rf "${K8S_KUBELET_DIR}"
+        ;;
+    esac
+  fi
+}
+
 # Print a status line. Formatted to show up in a stream of output.
 kube::log::status() {
   timestamp=$(date +"[%m%d %H:%M:%S]")
@@ -346,3 +385,4 @@ kube::log::fatal() {
   done
   exit 1
 }
+

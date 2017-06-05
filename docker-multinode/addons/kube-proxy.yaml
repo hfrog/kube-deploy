@@ -36,7 +36,7 @@ spec:
         command:
         - /hyperkube
         - proxy
-        - --kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig-http.yaml
+        - --kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig-proxy.yaml
         - --v=2
         securityContext:
           privileged: true

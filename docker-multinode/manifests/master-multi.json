@@ -15,7 +15,7 @@
         "/hyperkube",
         "controller-manager",
         "--kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig.yaml",
-        "--service-account-private-key-file=/srv/kubernetes/server.key",
+        "--service-account-private-key-file=/srv/kubernetes/kubernetes-master.key",
         "--use-service-account-credentials=true",
         "--root-ca-file=/srv/kubernetes/ca.crt",
         "--min-resync-period=3m",
@@ -44,16 +44,17 @@
         "/hyperkube",
         "apiserver",
         "--service-cluster-ip-range=SERVICE_NETWORK.1/24",
-        "--insecure-bind-address=0.0.0.0",
+        "--insecure-port=0",
         "--etcd-servers=http://ETCD_IP:2379",
         "--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny",
         "--client-ca-file=/srv/kubernetes/ca.crt",
         "--basic-auth-file=/srv/kubernetes/basic_auth.csv",
         "--min-request-timeout=300",
-        "--tls-cert-file=/srv/kubernetes/server.cert",
-        "--tls-private-key-file=/srv/kubernetes/server.key",
+        "--tls-cert-file=/srv/kubernetes/kubernetes-master.crt",
+        "--tls-private-key-file=/srv/kubernetes/kubernetes-master.key",
+        "--tls-ca-file=/srv/kubernetes/ca.crt",
         "--service-account-lookup=true",
-        "--service-account-key-file=/srv/kubernetes/server.key",
+        "--service-account-key-file=/srv/kubernetes/kubernetes-master.key",
         "--allow-privileged=true",
         "--anonymous-auth=false",
         "--profiling=false",
@@ -88,25 +89,6 @@
           "name": "data",
           "mountPath": "/srv/kubernetes",
           "readOnly": true
-        },
-        {
-          "name": "kubeconfig",
-          "mountPath": "/var/lib/kubelet/kubeconfig",
-          "readOnly": true
-        }
-      ]
-    },
-    {
-      "name": "setup",
-      "image": "REGISTRY/hyperkube-ARCH:VERSION",
-      "command": [
-        "/setup-files.sh",
-        "IP:SERVICE_NETWORK.1,DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.cluster.local"
-      ],
-      "volumeMounts": [
-        {
-          "name": "data",
-          "mountPath": "/srv/kubernetes"
         },
         {
           "name": "kubeconfig",
