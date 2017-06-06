@@ -52,7 +52,7 @@ kube::multinode::main() {
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
-  IP_POOL=${IP_POOL:-"10.168.0.0/16"}
+  IP_POOL=${IP_POOL:-"10.168.0.0\/16"}
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
   USE_CNI=${USE_CNI:-"true"}
@@ -225,7 +225,7 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s/IP_POOL/${IP_POOL}/g"\
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s/IP_POOL/${IP_POOL}/g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
         $1
 }
