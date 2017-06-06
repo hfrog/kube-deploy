@@ -36,23 +36,27 @@ kube::multinode::main() {
     kube::log::fatal "Docker is not running on this machine!"
   fi
 
+  # just as note
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
+
+  # tunables
   K8S_VERSION=${K8S_VERSION:-"v1.6.4-qiwi.1"}
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
+  IP_POOL=${IP_POOL:-"10.168.0.0/16"}
+  SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
+
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
 
   ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
   ETCD_NET_PARAM="--net host"
-  ETCD_IP="${MASTER_IP}"
+  ETCD_IP="${ETCD_IP:-${MASTER_IP}}"
 
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
 
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
-  SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
-  IP_POOL=${IP_POOL:-"10.168.0.0\/16"}
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
   USE_CNI=${USE_CNI:-"true"}
@@ -106,22 +110,25 @@ kube::multinode::log_variables() {
 
   # Output the value of the variables
   kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
+  kube::log::status "REGISTRY is set to: ${REGISTRY}"
+  kube::log::status "IP_POOL is set to: ${IP_POOL}"
+  kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
+  kube::log::status "--------------------------------------------"
+  kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
+  kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
+  kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
+  kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
+  kube::log::status "ARCH is set to: ${ARCH}"
+  kube::log::status "USE_CNI is set to: ${USE_CNI}"
+  kube::log::status "USE_CONTAINERIZED is set to: ${USE_CONTAINERIZED}"
+  kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
+  kube::log::status "--------------------------------------------"
   kube::log::status "K8S_KUBESRV_DIR is set to: ${K8S_KUBESRV_DIR}"
   kube::log::status "K8S_ADDONS_DIR is set to: ${K8S_ADDONS_DIR}"
   kube::log::status "K8S_MANIFEST_DIR is set to: ${K8S_MANIFEST_DIR}"
   kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
   kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
   kube::log::status "CERTS_DIR is set to: ${CERTS_DIR}"
-  kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
-  kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
-  kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
-  kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
-  kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
-  kube::log::status "IP_POOL is set to: ${IP_POOL}"
-  kube::log::status "ARCH is set to: ${ARCH}"
-  kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
-  kube::log::status "USE_CNI is set to: ${USE_CNI}"
-  kube::log::status "USE_CONTAINERIZED is set to: ${USE_CONTAINERIZED}"
   kube::log::status "--------------------------------------------"
 }
 
@@ -225,9 +232,9 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s/IP_POOL/${IP_POOL}/g" \
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
-        $1
+        $1 | awk '{ gsub("IP_POOL", "'${IP_POOL}'"); print $0; }'
 }
 
 kube::multinode::create_addons() {
