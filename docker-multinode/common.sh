@@ -37,9 +37,8 @@ kube::multinode::main() {
   fi
 
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
-  LATEST_STABLE_K8S_VERSION='v1.6.4-qiwi.1'
-  K8S_VERSION=${K8S_VERSION:-${LATEST_STABLE_K8S_VERSION}}
-  REGISTRY='dcr.qiwi.com'
+  K8S_VERSION=${K8S_VERSION:-"v1.6.4-qiwi.1"}
+  REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
@@ -52,7 +51,8 @@ kube::multinode::main() {
 
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
-  SERVICE_NETWORK="10.24.0"
+  SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
+  IP_POOL=${IP_POOL:-"10.168.0.0/16"}
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
   USE_CNI=${USE_CNI:-"true"}
@@ -117,6 +117,7 @@ kube::multinode::log_variables() {
   kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
   kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
   kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
+  kube::log::status "IP_POOL is set to: ${IP_POOL}"
   kube::log::status "ARCH is set to: ${ARCH}"
   kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
   kube::log::status "USE_CNI is set to: ${USE_CNI}"
@@ -224,7 +225,7 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s/IP_POOL/${IP_POOL}/g"\
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
         $1
 }
