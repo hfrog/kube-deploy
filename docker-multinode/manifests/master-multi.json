@@ -45,6 +45,7 @@
         "apiserver",
         "--service-cluster-ip-range=SERVICE_NETWORK.1/24",
         "--insecure-port=0",
+        "--secure-port=443",
         "--etcd-servers=http://ETCD_IP:2379",
         "--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny",
         "--client-ca-file=/srv/kubernetes/ca.crt",
