@@ -232,9 +232,9 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s|IP_POOL|${IP_POOL}|g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
-        $1 | awk '{ gsub("IP_POOL", "'${IP_POOL}'"); print $0; }'
+        $1
 }
 
 kube::multinode::create_addons() {
@@ -266,7 +266,7 @@ kube::multinode::create_basic_auth() {
   for f in basic_auth.csv; do
     if [ ! -f ${K8S_KUBESRV_DIR}/$f ]; then
       kube::multinode::expand_vars $f > ${K8S_KUBESRV_DIR}/$f
-      chmod 600 ${K8S_KUBESRV_DIR}/$f
+      chmod 400 ${K8S_KUBESRV_DIR}/$f
     fi
   done
 }
@@ -279,7 +279,12 @@ kube::multinode::create_cert() {
     srcfile=${CERTS_DIR}/$file
     if [ -f "${srcfile}" ]; then
       cp -f "${srcfile}" "${dstfile}"
-      chmod 600 "${dstfile}"
+      if [[ "${file}" =~ \.key$ ]]; then
+        mode=400
+      else
+        mode=444
+      fi
+      chmod $mode "${dstfile}"
     else
       kube::log::fatal "There is no file ${file}, please fix it"
     fi
