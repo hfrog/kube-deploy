@@ -22,7 +22,5 @@ source $(dirname "${BASH_SOURCE}")/common.sh
 
 kube::multinode::main
 
-kube::multinode::log_variables
-
 kube::multinode::turndown
 
