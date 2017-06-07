@@ -109,13 +109,13 @@ kube::multinode::main() {
 kube::multinode::log_variables() {
 
   # Output the value of the variables
+  kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
   kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
   kube::log::status "REGISTRY is set to: ${REGISTRY}"
   kube::log::status "IP_POOL is set to: ${IP_POOL}"
   kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
   kube::log::status "--------------------------------------------"
   kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
-  kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
   kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
   kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
   kube::log::status "ARCH is set to: ${ARCH}"
