@@ -56,6 +56,7 @@
         "--tls-ca-file=/srv/kubernetes/ca.crt",
         "--service-account-lookup=true",
         "--service-account-key-file=/srv/kubernetes/kubernetes-master.key",
+        "--authorization-mode=RBAC",
         "--allow-privileged=true",
         "--anonymous-auth=false",
         "--profiling=false",
