@@ -44,6 +44,7 @@ kube::multinode::main() {
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
+  DEX_IP=${DEX_IP:-${MASTER_IP}}
 
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
@@ -232,8 +233,9 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" -e "s|IP_POOL|${IP_POOL}|g" \
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
+        -e "s|IP_POOL|${IP_POOL}|g" -e "s/DEX_IP/${DEX_IP}/g" \
         $1
 }
 
