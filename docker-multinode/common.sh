@@ -65,7 +65,7 @@ kube::multinode::main() {
   CNI_ARGS=""
 
   K8S_KUBESRV_DIR="/srv/kubernetes"
-  K8S_ADDONS_DIR="/srv/kubernetes_addons"
+  K8S_ADDONS_DIR="${K8S_KUBESRV_DIR}/addons"
   K8S_MANIFEST_DIR="/srv/kubernetes_manifest"
   K8S_KUBELET_DIR="/var/lib/kubelet"
   K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
@@ -233,6 +233,7 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
+        -e "s|K8S_ADDONS_DIR|${K8S_ADDONS_DIR}|g" \
         -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
         -e "s|IP_POOL|${IP_POOL}|g" -e "s/DEX_IP/${DEX_IP}/g" \
