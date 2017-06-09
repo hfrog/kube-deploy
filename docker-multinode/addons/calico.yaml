@@ -4,6 +4,7 @@
 #   calico/node:v1.2.1
 #   calico/cni:v1.8.3
 #   calico/kube-policy-controller:v0.6.0
+# http://docs.projectcalico.org/v2.2/getting-started/kubernetes/installation/hosted/calico.yaml
 
 # This ConfigMap is used to configure a self-hosted Calico installation.
 kind: ConfigMap
