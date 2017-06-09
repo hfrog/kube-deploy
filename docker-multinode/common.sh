@@ -66,7 +66,7 @@ kube::multinode::main() {
 
   K8S_KUBESRV_DIR="/srv/kubernetes"
   K8S_ADDONS_DIR="${K8S_KUBESRV_DIR}/addons"
-  K8S_MANIFEST_DIR="/srv/kubernetes_manifest"
+  K8S_MANIFESTS_DIR="${K8S_KUBESRV_DIR}/manifests"
   K8S_KUBELET_DIR="/var/lib/kubelet"
   K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
 
@@ -126,7 +126,7 @@ kube::multinode::log_variables() {
   kube::log::status "--------------------------------------------"
   kube::log::status "K8S_KUBESRV_DIR is set to: ${K8S_KUBESRV_DIR}"
   kube::log::status "K8S_ADDONS_DIR is set to: ${K8S_ADDONS_DIR}"
-  kube::log::status "K8S_MANIFEST_DIR is set to: ${K8S_MANIFEST_DIR}"
+  kube::log::status "K8S_MANIFESTS_DIR is set to: ${K8S_MANIFESTS_DIR}"
   kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
   kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
   kube::log::status "CERTS_DIR is set to: ${CERTS_DIR}"
@@ -195,16 +195,13 @@ kube::multinode::start_k8s() {
 # Start kubelet first and then the master components as pods
 kube::multinode::start_k8s_master() {
   kube::multinode::create_addons
-  kube::multinode::create_manifest
+  kube::multinode::create_manifests
   kube::multinode::create_basic_auth
   kube::multinode::create_worker_certs
   kube::multinode::create_master_certs
 
   kube::log::status "Launching Kubernetes master components..."
-  KUBELET_ARGS="--pod-manifest-path=/etc/kubernetes/manifests-multi"
-  KUBELET_MOUNTS="\
-        ${KUBELET_MOUNTS} \
-        -v ${K8S_MANIFEST_DIR}:/etc/kubernetes/manifests-multi:ro"
+  KUBELET_ARGS="--pod-manifest-path=${K8S_MANIFESTS_DIR}"
   kube::multinode::start_k8s
 }
 
@@ -249,11 +246,12 @@ kube::multinode::create_addons() {
   done
 }
 
-kube::multinode::create_manifest() {
-  kube::log::status "Creating manifest dir ${K8S_MANIFEST_DIR}"
-  mkdir -p ${K8S_MANIFEST_DIR}
+kube::multinode::create_manifests() {
+  kube::log::status "Creating manifests dir ${K8S_MANIFESTS_DIR}"
+  rm -fr ${K8S_MANIFESTS_DIR}
+  mkdir -p ${K8S_MANIFESTS_DIR}
   for f in manifests/*; do
-    kube::multinode::expand_vars $f > ${K8S_MANIFEST_DIR}/$(basename $f)
+    kube::multinode::expand_vars $f > ${K8S_MANIFESTS_DIR}/$(basename $f)
   done
 }
 
