@@ -67,10 +67,12 @@ kube::multinode::main() {
   K8S_KUBESRV_DIR="/srv/kubernetes"
   K8S_ADDONS_DIR="${K8S_KUBESRV_DIR}/addons"
   K8S_MANIFESTS_DIR="${K8S_KUBESRV_DIR}/manifests"
+  K8S_CERTS_DIR="${K8S_KUBESRV_DIR}/crt"
+  K8S_KEYS_DIR="${K8S_KUBESRV_DIR}/key"
   K8S_KUBELET_DIR="/var/lib/kubelet"
   K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
 
-  CERTS_DIR="/root/certs"
+  SRC_CERTS_DIR="/root/certs"
 
   if [[ ${USE_CONTAINERIZED} == "true" ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
@@ -127,9 +129,11 @@ kube::multinode::log_variables() {
   kube::log::status "K8S_KUBESRV_DIR is set to: ${K8S_KUBESRV_DIR}"
   kube::log::status "K8S_ADDONS_DIR is set to: ${K8S_ADDONS_DIR}"
   kube::log::status "K8S_MANIFESTS_DIR is set to: ${K8S_MANIFESTS_DIR}"
+  kube::log::status "K8S_CERTS_DIR is set to: ${K8S_CERTS_DIR}"
+  kube::log::status "K8S_KEYS_DIR is set to: ${K8S_KEYS_DIR}"
   kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
   kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
-  kube::log::status "CERTS_DIR is set to: ${CERTS_DIR}"
+  kube::log::status "SRC_CERTS_DIR is set to: ${SRC_CERTS_DIR}"
   kube::log::status "--------------------------------------------"
 }
 
@@ -231,6 +235,8 @@ kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
         -e "s|K8S_ADDONS_DIR|${K8S_ADDONS_DIR}|g" \
+        -e "s|K8S_CERTS_DIR|${K8S_CERTS_DIR}|g" \
+        -e "s|K8S_KEYS_DIR|${K8S_KEYS_DIR}|g" \
         -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
         -e "s|IP_POOL|${IP_POOL}|g" -e "s/DEX_IP/${DEX_IP}/g" \
@@ -274,35 +280,43 @@ kube::multinode::create_basic_auth() {
 
 kube::multinode::create_cert() {
   file="$1"
-  dstfile=${K8S_KUBESRV_DIR}/$file
-  if [ ! -f "${dstfile}" ]; then
+
+  [[ -d ${K8S_CERTS_DIR} ]] || rm -fr ${K8S_CERTS_DIR} \
+        && mkdir -p ${K8S_CERTS_DIR}
+  [[ -d ${K8S_KEYS_DIR} ]] || rm -fr ${K8S_KEYS_DIR} \
+        && mkdir -p ${K8S_KEYS_DIR}
+
+  if [[ "${file}" =~ \.crt$ ]]; then
+    dstfile=${K8S_CERTS_DIR}/$file
+    mode=444
+  elif [[ "${file}" =~ \.key$ ]]; then
+    dstfile=${K8S_KEYS_DIR}/$file
+    mode=400
+  else
+    kube::log::fatal "Don't know how to handle ${file}"
+  fi
+
+  if [[ ! -f "${dstfile}" ]]; then
     # there is no cert/key file, try to copy it
-    srcfile=${CERTS_DIR}/$file
+    srcfile=${SRC_CERTS_DIR}/$file
     if [ -f "${srcfile}" ]; then
       cp -f "${srcfile}" "${dstfile}"
-      if [[ "${file}" =~ \.key$ ]]; then
-        mode=400
-      else
-        mode=444
-      fi
       chmod $mode "${dstfile}"
     else
-      kube::log::fatal "There is no file ${file}, please fix it"
+      kube::log::fatal "There is no src file ${file}, please fix it"
     fi
   fi
 }
 
 kube::multinode::create_worker_certs() {
-  mkdir -p ${K8S_KUBESRV_DIR}
-
+  kube::log::status "Creating worker certs"
   for f in ca.crt ${IP_ADDRESS}-{proxy,kubelet}.{crt,key}; do
     kube::multinode::create_cert $f
   done
 }
 
 kube::multinode::create_master_certs() {
-  mkdir -p ${K8S_KUBESRV_DIR}
-
+  kube::log::status "Creating master certs"
   for f in {kubernetes-master,kubecfg,addon-manager}.{crt,key}; do
     kube::multinode::create_cert $f
   done
