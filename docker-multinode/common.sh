@@ -234,42 +234,48 @@ kube::multinode::make_shared_kubelet_dir() {
 kube::multinode::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
+        -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
+        -e "s|K8S_KUBECONFIG_DIR|${K8S_KUBECONFIG_DIR}|g" \
+        -e "s|K8S_KUBESRV_DIR|${K8S_KUBESRV_DIR}|g" \
         -e "s|K8S_ADDONS_DIR|${K8S_ADDONS_DIR}|g" \
         -e "s|K8S_CERTS_DIR|${K8S_CERTS_DIR}|g" \
         -e "s|K8S_KEYS_DIR|${K8S_KEYS_DIR}|g" \
-        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
-        -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
+        -e "s|SERVICE_NETWORK|${SERVICE_NETWORK}|g" \
         -e "s|IP_POOL|${IP_POOL}|g" -e "s/DEX_IP/${DEX_IP}/g" \
         $1
 }
 
 kube::multinode::create_addons() {
-  kube::log::status "Creating addons dir ${K8S_ADDONS_DIR}"
-  rm -fr ${K8S_ADDONS_DIR}
-  mkdir -p ${K8S_ADDONS_DIR}
+  kube::log::status "Creating addons"
+  [[ -d ${K8S_ADDONS_DIR} ]] || rm -fr ${K8S_ADDONS_DIR} \
+        && mkdir -p ${K8S_ADDONS_DIR}
   for f in addons/*; do
     kube::multinode::expand_vars $f > ${K8S_ADDONS_DIR}/$(basename $f)
   done
 }
 
 kube::multinode::create_manifests() {
-  kube::log::status "Creating manifests dir ${K8S_MANIFESTS_DIR}"
-  rm -fr ${K8S_MANIFESTS_DIR}
-  mkdir -p ${K8S_MANIFESTS_DIR}
+  kube::log::status "Creating manifests"
+  [[ -d ${K8S_MANIFESTS_DIR} ]] || rm -fr ${K8S_MANIFESTS_DIR} \
+        && mkdir -p ${K8S_MANIFESTS_DIR}
   for f in manifests/*; do
     kube::multinode::expand_vars $f > ${K8S_MANIFESTS_DIR}/$(basename $f)
   done
 }
 
 kube::multinode::create_kubeconfig() {
-  mkdir -p ${K8S_KUBECONFIG_DIR}
+  kube::log::status "Creating kubeconfigs"
+  [[ -d ${K8S_KUBECONFIG_DIR} ]] || rm -fr ${K8S_KUBECONFIG_DIR} \
+        && mkdir -p ${K8S_KUBECONFIG_DIR}
   for f in kubeconfig/*; do
     kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
   done
 }
 
 kube::multinode::create_basic_auth() {
-  mkdir -p ${K8S_KUBESRV_DIR}
+  kube::log::status "Creating basic auth"
+  [[ -d ${K8S_KUBESRV_DIR} ]] || rm -fr ${K8S_KUBESRV_DIR} \
+        && mkdir -p ${K8S_KUBESRV_DIR}
   for f in basic_auth.csv; do
     if [ ! -f ${K8S_KUBESRV_DIR}/$f ]; then
       kube::multinode::expand_vars $f > ${K8S_KUBESRV_DIR}/$f
@@ -309,14 +315,14 @@ kube::multinode::create_cert() {
 }
 
 kube::multinode::create_worker_certs() {
-  kube::log::status "Creating worker certs"
+  kube::log::status "Creating worker certs and keys"
   for f in ca.crt ${IP_ADDRESS}-{proxy,kubelet}.{crt,key}; do
     kube::multinode::create_cert $f
   done
 }
 
 kube::multinode::create_master_certs() {
-  kube::log::status "Creating master certs"
+  kube::log::status "Creating master certs and keys"
   for f in {kubernetes-master,kubecfg,addon-manager}.{crt,key}; do
     kube::multinode::create_cert $f
   done

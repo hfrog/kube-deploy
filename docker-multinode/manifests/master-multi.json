@@ -14,7 +14,7 @@
       "command": [
         "/hyperkube",
         "controller-manager",
-        "--kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig.yaml",
+        "--kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig.yaml",
         "--service-account-private-key-file=K8S_KEYS_DIR/kubernetes-master.key",
         "--use-service-account-credentials=true",
         "--root-ca-file=K8S_CERTS_DIR/ca.crt",
@@ -27,12 +27,12 @@
       "volumeMounts": [
         {
           "name": "data",
-          "mountPath": "/srv/kubernetes",
+          "mountPath": "K8S_KUBESRV_DIR",
           "readOnly": true
         },
         {
           "name": "kubeconfig",
-          "mountPath": "/var/lib/kubelet/kubeconfig",
+          "mountPath": "K8S_KUBECONFIG_DIR",
           "readOnly": true
         }
       ]
@@ -49,7 +49,7 @@
         "--etcd-servers=http://ETCD_IP:2379",
         "--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny",
         "--client-ca-file=K8S_CERTS_DIR/ca.crt",
-        "--basic-auth-file=/srv/kubernetes/basic_auth.csv",
+        "--basic-auth-file=K8S_KUBESRV_DIR/basic_auth.csv",
         "--min-request-timeout=300",
         "--tls-cert-file=K8S_CERTS_DIR/kubernetes-master.crt",
         "--tls-private-key-file=K8S_KEYS_DIR/kubernetes-master.key",
@@ -65,12 +65,12 @@
       "volumeMounts": [
         {
           "name": "data",
-          "mountPath": "/srv/kubernetes",
+          "mountPath": "K8S_KUBESRV_DIR",
           "readOnly": true
         },
         {
           "name": "kubeconfig",
-          "mountPath": "/var/lib/kubelet/kubeconfig",
+          "mountPath": "K8S_KUBECONFIG_DIR",
           "readOnly": true
         }
       ]
@@ -81,7 +81,7 @@
       "command": [
         "/hyperkube",
         "scheduler",
-        "--kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig.yaml",
+        "--kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig.yaml",
         "--leader-elect=true",
         "--profiling=false",
         "--v=2"
@@ -89,12 +89,12 @@
       "volumeMounts": [
         {
           "name": "data",
-          "mountPath": "/srv/kubernetes",
+          "mountPath": "K8S_KUBESRV_DIR",
           "readOnly": true
         },
         {
           "name": "kubeconfig",
-          "mountPath": "/var/lib/kubelet/kubeconfig",
+          "mountPath": "K8S_KUBECONFIG_DIR",
           "readOnly": true
         }
       ]
@@ -104,13 +104,13 @@
     {
       "name": "data",
       "hostPath": {
-        "path": "/srv/kubernetes"
+        "path": "K8S_KUBESRV_DIR"
       }
     },
     {
       "name": "kubeconfig",
       "hostPath": {
-        "path": "/var/lib/kubelet/kubeconfig"
+        "path": "K8S_KUBECONFIG_DIR"
       }
     }
   ]

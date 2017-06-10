@@ -15,7 +15,7 @@
         "env": [
           {
             "name": "KUBECTL_OPTS",
-            "value": "--kubeconfig=/var/lib/kubelet/kubeconfig/kubeconfig-addon-manager.yaml"
+            "value": "--kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-addon-manager.yaml"
           }
         ],
         "resources": {
@@ -27,7 +27,7 @@
         "volumeMounts": [
           {
             "name": "data",
-            "mountPath": "/srv/kubernetes",
+            "mountPath": "K8S_KUBESRV_DIR",
             "readOnly": true
           },
           {
@@ -37,7 +37,7 @@
           },
           {
             "name": "kubeconfig",
-            "mountPath": "/var/lib/kubelet/kubeconfig",
+            "mountPath": "K8S_KUBECONFIG_DIR",
             "readOnly": true
           }
         ]
@@ -47,7 +47,7 @@
       {
         "name": "data",
         "hostPath": {
-          "path": "/srv/kubernetes"
+          "path": "K8S_KUBESRV_DIR"
         }
       },
       {
@@ -59,7 +59,7 @@
       {
         "name": "kubeconfig",
         "hostPath": {
-          "path": "/var/lib/kubelet/kubeconfig"
+          "path": "K8S_KUBECONFIG_DIR"
         }
       }
     ]
