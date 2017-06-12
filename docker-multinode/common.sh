@@ -328,6 +328,21 @@ kube::multinode::create_master_certs() {
   done
 }
 
+kube::helpers::confirm() {
+  read -p "$1 " input
+
+  return=1
+  case $input in
+    [nN]*)
+      return=1
+      ;;
+    *)
+      return=0
+      ;;
+  esac
+  return $return
+}
+
 # Check if a command is valid
 kube::helpers::command_exists() {
   command -v "$@" > /dev/null 2>&1

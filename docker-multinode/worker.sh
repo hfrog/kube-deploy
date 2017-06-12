@@ -27,6 +27,13 @@ kube::multinode::main
 
 kube::multinode::log_variables
 
+if kube::helpers::confirm "Continue? [Y/n]"; then
+  kube::log::status "Continue"
+else
+  kube::log::status "Exiting"
+  exit 1
+fi
+
 kube::multinode::turndown
 
 if [[ ${USE_CNI} == "true" ]]; then
