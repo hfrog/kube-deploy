@@ -201,8 +201,8 @@ kube::multinode::start_k8s_master() {
   kube::multinode::create_addons
   kube::multinode::create_manifests
   kube::multinode::create_basic_auth
-  kube::multinode::create_worker_certs
-  kube::multinode::create_master_certs
+  kube::multinode::copy_worker_certs
+  kube::multinode::copy_master_certs
 
   kube::log::status "Launching Kubernetes master components..."
   KUBELET_ARGS="--pod-manifest-path=${K8S_MANIFESTS_DIR}"
@@ -211,7 +211,7 @@ kube::multinode::start_k8s_master() {
 
 # Start kubelet in a container, for a worker node
 kube::multinode::start_k8s_worker() {
-  kube::multinode::create_worker_certs
+  kube::multinode::copy_worker_certs
 
   kube::log::status "Launching Kubernetes worker components..."
   KUBELET_ARGS=""
@@ -231,7 +231,7 @@ kube::multinode::make_shared_kubelet_dir() {
   fi
 }
 
-kube::multinode::expand_vars() {
+kube::util::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
@@ -250,7 +250,7 @@ kube::multinode::create_addons() {
   [[ -d ${K8S_ADDONS_DIR} ]] || rm -fr ${K8S_ADDONS_DIR} \
         && mkdir -p ${K8S_ADDONS_DIR}
   for f in addons/*; do
-    kube::multinode::expand_vars $f > ${K8S_ADDONS_DIR}/$(basename $f)
+    kube::util::expand_vars $f > ${K8S_ADDONS_DIR}/$(basename $f)
   done
 }
 
@@ -259,7 +259,7 @@ kube::multinode::create_manifests() {
   [[ -d ${K8S_MANIFESTS_DIR} ]] || rm -fr ${K8S_MANIFESTS_DIR} \
         && mkdir -p ${K8S_MANIFESTS_DIR}
   for f in manifests/*; do
-    kube::multinode::expand_vars $f > ${K8S_MANIFESTS_DIR}/$(basename $f)
+    kube::util::expand_vars $f > ${K8S_MANIFESTS_DIR}/$(basename $f)
   done
 }
 
@@ -268,7 +268,7 @@ kube::multinode::create_kubeconfig() {
   [[ -d ${K8S_KUBECONFIG_DIR} ]] || rm -fr ${K8S_KUBECONFIG_DIR} \
         && mkdir -p ${K8S_KUBECONFIG_DIR}
   for f in kubeconfig/*; do
-    kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
+    kube::util::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
   done
 }
 
@@ -278,13 +278,13 @@ kube::multinode::create_basic_auth() {
         && mkdir -p ${K8S_KUBESRV_DIR}
   for f in basic_auth.csv; do
     if [ ! -f ${K8S_KUBESRV_DIR}/$f ]; then
-      kube::multinode::expand_vars $f > ${K8S_KUBESRV_DIR}/$f
+      kube::util::expand_vars $f > ${K8S_KUBESRV_DIR}/$f
       chmod 400 ${K8S_KUBESRV_DIR}/$f
     fi
   done
 }
 
-kube::multinode::create_cert() {
+kube::util::copy_cert() {
   file="$1"
 
   [[ -d ${K8S_CERTS_DIR} ]] || rm -fr ${K8S_CERTS_DIR} \
@@ -314,17 +314,17 @@ kube::multinode::create_cert() {
   fi
 }
 
-kube::multinode::create_worker_certs() {
+kube::multinode::copy_worker_certs() {
   kube::log::status "Creating worker certs and keys"
   for f in ca.crt ${IP_ADDRESS}-{proxy,kubelet}.{crt,key}; do
-    kube::multinode::create_cert $f
+    kube::util::copy_cert $f
   done
 }
 
-kube::multinode::create_master_certs() {
+kube::multinode::copy_master_certs() {
   kube::log::status "Creating master certs and keys"
   for f in {kubernetes-master,kubecfg,addon-manager}.{crt,key}; do
-    kube::multinode::create_cert $f
+    kube::util::copy_cert $f
   done
 }
 
