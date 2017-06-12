@@ -124,16 +124,11 @@ kube::multinode::log_variables() {
   kube::log::status "ARCH is set to: ${ARCH}"
   kube::log::status "USE_CNI is set to: ${USE_CNI}"
   kube::log::status "USE_CONTAINERIZED is set to: ${USE_CONTAINERIZED}"
-  kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
   kube::log::status "--------------------------------------------"
+  kube::log::status "SRC_CERTS_DIR is set to: ${SRC_CERTS_DIR}"
   kube::log::status "K8S_KUBESRV_DIR is set to: ${K8S_KUBESRV_DIR}"
-  kube::log::status "K8S_ADDONS_DIR is set to: ${K8S_ADDONS_DIR}"
-  kube::log::status "K8S_MANIFESTS_DIR is set to: ${K8S_MANIFESTS_DIR}"
-  kube::log::status "K8S_CERTS_DIR is set to: ${K8S_CERTS_DIR}"
-  kube::log::status "K8S_KEYS_DIR is set to: ${K8S_KEYS_DIR}"
   kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
   kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
-  kube::log::status "SRC_CERTS_DIR is set to: ${SRC_CERTS_DIR}"
   kube::log::status "--------------------------------------------"
 }
 
