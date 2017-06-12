@@ -15,6 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#set -o errexit
+set -o nounset
+set -o pipefail
+
 cd "$(dirname "${BASH_SOURCE}")"
 source cni-plugin.sh
 
@@ -39,7 +43,11 @@ kube::multinode::main() {
   # just as note
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
 
+  DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
+  IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
+
   # tunables
+  MASTER_IP=${MASTER_IP:-${IP_ADDRESS}}
   K8S_VERSION=${K8S_VERSION:-"v1.6.4-qiwi.1"}
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
@@ -55,9 +63,6 @@ kube::multinode::main() {
   ETCD_IP="${ETCD_IP:-${MASTER_IP}}"
 
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
-
-  DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
-  IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
   USE_CNI=${USE_CNI:-"true"}
@@ -398,29 +403,26 @@ kube::multinode::turndown() {
   fi
 
   if [[ -d "${K8S_KUBELET_DIR}" ]]; then
-    read -p "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n] " clean_kubelet_dir
+    if kube::helpers::confirm \
+        "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n]"; then
 
-    case $clean_kubelet_dir in
-      [nN]*)
-        ;; # Do nothing
-      *)
-        kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
+      kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
 
-        # umount if there are mounts in ${K8S_KUBELET_DIR}
-        if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" | awk '{print $3}') ]]; then
+      # umount if there are mounts in ${K8S_KUBELET_DIR}
+      if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" | awk '{print $3}') ]]; then
 
-          # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
-          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
-          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
-        fi
+        # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
+        mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+        mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+        umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+        umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+      fi
 
-        # Delete the directory
-        rm -rf "${K8S_KUBELET_DIR}"
-        ;;
-    esac
+      # Delete the directory
+      rm -rf "${K8S_KUBELET_DIR}"
+    fi
   fi
+  return 0
 }
 
 # Print a status line. Formatted to show up in a stream of output.

@@ -17,6 +17,9 @@
 # Source common.sh
 source $(dirname "${BASH_SOURCE}")/common.sh
 
+# MASTER_IP should be set even for turndown
+[[ -z ${MASTER_IP+x} ]] && export MASTER_IP=any_value
+
 kube::multinode::main
 
 kube::multinode::turndown
