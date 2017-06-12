@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-USE_CNI=${USE_CNI:-"true"}
-USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
-
 # Source common.sh
 source $(dirname "${BASH_SOURCE}")/common.sh
 
