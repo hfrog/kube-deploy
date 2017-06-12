@@ -72,7 +72,7 @@ kube::multinode::main() {
   K8S_KUBELET_DIR="/var/lib/kubelet"
   K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
 
-  SRC_CERTS_DIR="/root/certs"
+  SRC_CERTS_DIR="/root/k8s-certs"
 
   if [[ ${USE_CONTAINERIZED} == "true" ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
