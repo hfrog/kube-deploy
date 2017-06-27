@@ -202,8 +202,8 @@ kube::multinode::start_k8s_master() {
   kube::multinode::create_addons
   kube::multinode::create_manifests
   kube::multinode::create_basic_auth
-  kube::multinode::copy_worker_certs
-  kube::multinode::copy_master_certs
+  kube::multinode::copy_worker_pki_files
+  kube::multinode::copy_master_pki_files
 
   kube::log::status "Launching Kubernetes master components..."
   KUBELET_ARGS="--pod-manifest-path=${K8S_MANIFESTS_DIR}"
@@ -212,7 +212,7 @@ kube::multinode::start_k8s_master() {
 
 # Start kubelet in a container, for a worker node
 kube::multinode::start_k8s_worker() {
-  kube::multinode::copy_worker_certs
+  kube::multinode::copy_worker_pki_files
 
   kube::log::status "Launching Kubernetes worker components..."
   KUBELET_ARGS=""
@@ -286,7 +286,7 @@ kube::multinode::create_basic_auth() {
   done
 }
 
-kube::util::copy_cert() {
+kube::util::copy_pki_file() {
   file="$1"
 
   [[ -d ${K8S_CERTS_DIR} ]] || rm -fr ${K8S_CERTS_DIR} \
@@ -316,17 +316,17 @@ kube::util::copy_cert() {
   fi
 }
 
-kube::multinode::copy_worker_certs() {
+kube::multinode::copy_worker_pki_files() {
   kube::log::status "Creating worker certs and keys"
   for f in ca.crt ${IP_ADDRESS}-{proxy,kubelet}.{crt,key}; do
-    kube::util::copy_cert $f
+    kube::util::copy_pki_file $f
   done
 }
 
-kube::multinode::copy_master_certs() {
+kube::multinode::copy_master_pki_files() {
   kube::log::status "Creating master certs and keys"
   for f in {kubernetes-master,kubecfg,addon-manager}.{crt,key}; do
-    kube::util::copy_cert $f
+    kube::util::copy_pki_file $f
   done
 }
 
