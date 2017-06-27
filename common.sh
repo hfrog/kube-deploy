@@ -52,6 +52,7 @@ kube::multinode::main() {
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
+  CLUSTER_DOMAIN="cluster.local"
   DEX_IP=${DEX_IP:-${MASTER_IP}}
 
 
@@ -190,7 +191,7 @@ kube::multinode::start_k8s() {
       --require-kubeconfig \
       --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig-kubelet.yaml \
       --cluster-dns=${SERVICE_NETWORK}.10 \
-      --cluster-domain=cluster.local \
+      --cluster-domain=${CLUSTER_DOMAIN} \
       ${CNI_ARGS} \
       ${CONTAINERIZED_FLAG} \
       --hostname-override=${IP_ADDRESS} \
@@ -236,6 +237,7 @@ kube::util::expand_vars() {
     sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
         -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
+        -e "s/CLUSTER_DOMAIN/${CLUSTER_DOMAIN}/g" \
         -e "s|K8S_KUBECONFIG_DIR|${K8S_KUBECONFIG_DIR}|g" \
         -e "s|K8S_KUBESRV_DIR|${K8S_KUBESRV_DIR}|g" \
         -e "s|K8S_AUTH_DIR|${K8S_AUTH_DIR}|g" \
