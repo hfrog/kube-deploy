@@ -149,11 +149,11 @@ kube::multinode::start_etcd() {
     -v ${K8S_KUBELET_DIR}/etcd:/var/etcd \
     gcr.io/google_containers/etcd-${ARCH}:${ETCD_VERSION} \
     /usr/local/bin/etcd \
-      --initial-advertise-peer-urls=http://${ETCD_IP}:2379 \
-      --initial-cluster=default=http://${ETCD_IP}:2379 \
       --listen-client-urls=http://0.0.0.0:2379 \
       --advertise-client-urls=http://${ETCD_IP}:2379 \
       --listen-peer-urls=http://0.0.0.0:2380 \
+      --initial-advertise-peer-urls=http://${ETCD_IP}:2380 \
+      --initial-cluster=default=http://${ETCD_IP}:2380 \
       --data-dir=/var/etcd/data
 
   # Wait for etcd to come up
