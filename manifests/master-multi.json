@@ -49,7 +49,7 @@
         "--etcd-servers=http://ETCD_IP:2379",
         "--admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny",
         "--client-ca-file=K8S_CERTS_DIR/ca.crt",
-        "--basic-auth-file=K8S_KUBESRV_DIR/basic_auth.csv",
+        "--basic-auth-file=K8S_AUTH_DIR/basic_auth.csv",
         "--min-request-timeout=300",
         "--tls-cert-file=K8S_CERTS_DIR/kubernetes-master.crt",
         "--tls-private-key-file=K8S_KEYS_DIR/kubernetes-master.key",

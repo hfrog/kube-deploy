@@ -70,6 +70,7 @@ kube::multinode::main() {
   CNI_ARGS=""
 
   K8S_KUBESRV_DIR="/srv/kubernetes"
+  K8S_AUTH_DIR="${K8S_KUBESRV_DIR}/auth"
   K8S_ADDONS_DIR="${K8S_KUBESRV_DIR}/addons"
   K8S_MANIFESTS_DIR="${K8S_KUBESRV_DIR}/manifests"
   K8S_CERTS_DIR="${K8S_KUBESRV_DIR}/crt"
@@ -237,6 +238,7 @@ kube::util::expand_vars() {
         -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
         -e "s|K8S_KUBECONFIG_DIR|${K8S_KUBECONFIG_DIR}|g" \
         -e "s|K8S_KUBESRV_DIR|${K8S_KUBESRV_DIR}|g" \
+        -e "s|K8S_AUTH_DIR|${K8S_AUTH_DIR}|g" \
         -e "s|K8S_ADDONS_DIR|${K8S_ADDONS_DIR}|g" \
         -e "s|K8S_CERTS_DIR|${K8S_CERTS_DIR}|g" \
         -e "s|K8S_KEYS_DIR|${K8S_KEYS_DIR}|g" \
@@ -274,12 +276,12 @@ kube::multinode::create_kubeconfig() {
 
 kube::multinode::create_basic_auth() {
   kube::log::status "Creating basic auth"
-  [[ -d ${K8S_KUBESRV_DIR} ]] || rm -fr ${K8S_KUBESRV_DIR} \
-        && mkdir -p ${K8S_KUBESRV_DIR}
+  [[ -d ${K8S_AUTH_DIR} ]] || rm -fr ${K8S_AUTH_DIR} \
+        && mkdir -p ${K8S_AUTH_DIR} && chmod 700 ${K8S_AUTH_DIR}
   for f in basic_auth.csv; do
-    if [ ! -f ${K8S_KUBESRV_DIR}/$f ]; then
-      kube::util::expand_vars $f > ${K8S_KUBESRV_DIR}/$f
-      chmod 400 ${K8S_KUBESRV_DIR}/$f
+    if [ ! -f ${K8S_AUTH_DIR}/$f ]; then
+      kube::util::expand_vars $f > ${K8S_AUTH_DIR}/$f
+      chmod 400 ${K8S_AUTH_DIR}/$f
     fi
   done
 }
