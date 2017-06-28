@@ -145,6 +145,16 @@ pki::create_master_certs() {
   pki::create_worker_certs $MASTER_IP
 }
 
+pki::place_tls_cert_bundle() {
+  # make bundle for HTTPS
+  local tls_cert_bundle=$K8S_CERTS_DIR/kubernetes-master-bundle.pem
+  if [[ ! -f $tls_cert_bundle ]]; then
+    openssl x509 -outform PEM < $K8S_CERTS_DIR/kubernetes-master.crt > $tls_cert_bundle
+    cat $K8S_CERTS_DIR/ca.crt >> $tls_cert_bundle
+    chmod 444 $tls_cert_bundle
+  fi
+}
+
 pki::copy_file() {
   local file=$1
   
@@ -214,6 +224,10 @@ pki::copy_file() {
     fi
   fi
 
+  if [[ $file == kubernetes-master.crt ]]; then
+    pki::place_tls_cert_bundle
+  fi
+
   # verify certs and keys
   if [[ $file =~ \.crt$ ]]; then
     # verify crt issuer
@@ -239,10 +253,25 @@ pki::copy_file() {
 pki::place_worker_file() {
   local file=$1
   if ! pki::copy_file $file; then
-    # create file and try to copy it again
+    # if copy was unsuccessful, then create file and try to copy it again
     pki::create_worker_certs $IP_ADDRESS
     if ! pki::copy_file $file; then
       kube::log::fatal "There is no src file $file, please fix it"
+    fi
+  fi
+
+  # verify worker files with CA from https server cert bundle
+  if [[ $file =~ \.crt$ ]]; then
+    local tls_cert_bundle=$K8S_CERTS_DIR/tls_cert_bundle_from_network.pem
+    if [[ ! -v got_tls_bundle || ! -f $tls_cert_bundle ]]; then
+      # get tls cert bundle from the https cerver
+      openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null > $tls_cert_bundle
+      got_tls_bundle=1
+    fi
+
+    local dstfile=$K8S_CERTS_DIR/$file
+    if ! openssl verify -CAfile $tls_cert_bundle $dstfile >/dev/null; then
+      kube::log::fatal "openssl verify $dstfile with TLS CA cert failed"
     fi
   fi
 }
@@ -250,7 +279,7 @@ pki::place_worker_file() {
 pki::place_master_file() {
   local file=$1
   if ! pki::copy_file $file; then
-    # create file and try to copy it again
+    # if copy was unsuccessful, then create file and try to copy it again
     pki::create_master_certs
     if ! pki::copy_file $file; then
       kube::log::fatal "There is no src file $file, please fix it"
