@@ -15,9 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#set -o errexit
+set -o errexit
+set -o errtrace
 set -o nounset
 set -o pipefail
+
+trap 'echo errexit >&2' ERR
+
+DEBUG="${DEBUG:-false}"
+if [[ "${DEBUG}" == "true" ]]; then
+  set -x
+fi
 
 cd "$(dirname "${BASH_SOURCE}")"
 source cni-plugin.sh
@@ -36,7 +44,7 @@ kube::multinode::main() {
   done
 
   # Make sure docker daemon is running
-  if [[ $(docker ps 2>&1 1>/dev/null; echo $?) != 0 ]]; then
+  if [[ $(docker ps >/dev/null; echo $?) != 0 ]]; then
     kube::log::fatal "Docker is not running on this machine!"
   fi
 
@@ -46,7 +54,7 @@ kube::multinode::main() {
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
 
-  # tunables
+  # main tunables
   MASTER_IP=${MASTER_IP:-${IP_ADDRESS}}
   K8S_VERSION=${K8S_VERSION:-"v1.6.4-qiwi.1"}
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
@@ -54,7 +62,6 @@ kube::multinode::main() {
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
   CLUSTER_DOMAIN="cluster.local"
   DEX_IP=${DEX_IP:-${MASTER_IP}}
-
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
@@ -160,7 +167,7 @@ kube::multinode::start_etcd() {
 
   # Wait for etcd to come up
   local SECONDS=0
-  while [[ $(curl -fsSL http://${ETCD_IP}:2379/health 2>&1 1>/dev/null; echo $?) != 0 ]]; do
+  while [[ $(curl -fsSL http://${ETCD_IP}:2379/health >/dev/null; echo $?) != 0 ]]; do
     ((SECONDS++))
     if [[ ${SECONDS} == ${TIMEOUT_FOR_SERVICES} ]]; then
       kube::log::fatal "etcd failed to start. Exiting..."
@@ -281,7 +288,7 @@ kube::multinode::create_basic_auth() {
   [[ -d ${K8S_AUTH_DIR} ]] || rm -fr ${K8S_AUTH_DIR} \
         && mkdir -p ${K8S_AUTH_DIR} && chmod 700 ${K8S_AUTH_DIR}
   for f in basic_auth.csv; do
-    if [ ! -f ${K8S_AUTH_DIR}/$f ]; then
+    if [[ ! -f ${K8S_AUTH_DIR}/$f ]]; then
       kube::util::expand_vars $f > ${K8S_AUTH_DIR}/$f
       chmod 400 ${K8S_AUTH_DIR}/$f
     fi
@@ -309,7 +316,7 @@ kube::util::copy_pki_file() {
   if [[ ! -f "${dstfile}" ]]; then
     # there is no cert/key file, try to copy it
     srcfile=${SRC_CERTS_DIR}/$file
-    if [ -f "${srcfile}" ]; then
+    if [[ -f "${srcfile}" ]]; then
       cp -f "${srcfile}" "${dstfile}"
       chmod $mode "${dstfile}"
     else
@@ -349,7 +356,7 @@ kube::helpers::confirm() {
 
 # Check if a command is valid
 kube::helpers::command_exists() {
-  command -v "$@" > /dev/null 2>&1
+  command -v "$@" >/dev/null
 }
 
 # Returns five "random" chars
@@ -392,18 +399,18 @@ kube::helpers::host_platform() {
 # Turndown the local cluster
 kube::multinode::turndown() {
 
-  kube::log::status "Killing all kubernetes containers..."
-
   KUBE_ERE="kube_|k8s_"
-  if [[ $(docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | wc -l) != 0 ]]; then
+  if [[ $(docker ps -a | grep -E "${KUBE_ERE}" || true | awk '{print $1}' | wc -l) != 0 ]]; then
+    kube::log::status "Killing all kubernetes containers..."
     # run twice for sure
-    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
-        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
-    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
-        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
+    docker ps | grep -E "${KUBE_ERE}" || true | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm -f
+    echo hahazzz
+    docker ps | grep -E "${KUBE_ERE}" || true | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm -f
 
     # also remove stopped containers
-    docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs --no-run-if-empty docker rm
+    docker ps -a | grep -E "${KUBE_ERE}" || true | awk '{print $1}' | xargs --no-run-if-empty docker rm
   fi
 
   if [[ -d "${K8S_KUBELET_DIR}" ]]; then
@@ -413,13 +420,13 @@ kube::multinode::turndown() {
       kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
 
       # umount if there are mounts in ${K8S_KUBELET_DIR}
-      if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" | awk '{print $3}') ]]; then
+      if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" || true | awk '{print $3}') ]]; then
 
         # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
-        mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-        mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-        umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
-        umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+        mount | grep "${K8S_KUBELET_DIR}/*" || true | awk '{print $3}' | xargs umount >/dev/null
+        mount | grep "${K8S_KUBELET_DIR}/*" || true | awk '{print $3}' | xargs umount >/dev/null
+        umount "${K8S_KUBELET_DIR}" >/dev/null
+        umount "${K8S_KUBELET_DIR}" >/dev/null
       fi
 
       # Delete the directory

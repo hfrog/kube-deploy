@@ -19,7 +19,7 @@ kube::cni::ensure_docker_settings(){
 
   if kube::helpers::command_exists systemctl; then
     local restart=false
-    DOCKER_CONF=$(systemctl cat docker | head -1 | awk '{print $2}')
+    DOCKER_CONF=$(systemctl cat docker | awk 'FNR==1 {print $2}')
 
     # Clear mtu and bip when previously started in docker-bootstrap mode
     if [[ ! -z $(grep "mtu=" ${DOCKER_CONF}) && ! -z $(grep "bip=" ${DOCKER_CONF}) ]]; then
