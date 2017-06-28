@@ -23,7 +23,7 @@ set -o pipefail
 trap 'echo errexit >&2' ERR
 
 DEBUG="${DEBUG:-false}"
-if [[ "${DEBUG}" == "true" ]]; then
+if [[ $DEBUG == true ]]; then
   set -x
 fi
 
@@ -33,13 +33,13 @@ source cni-plugin.sh
 kube::multinode::main() {
 
   # Require root
-  if [[ "$(id -u)" != "0" ]]; then
+  if [[ $(id -u) != 0 ]]; then
     kube::log::fatal "Please run as root"
   fi
 
   for tool in curl ip docker; do
-    if [[ ! -f $(which ${tool} 2>&1) ]]; then
-      kube::log::fatal "The binary ${tool} is required. Install it."
+    if [[ ! -f $(which $tool 2>&1) ]]; then
+      kube::log::fatal "The binary $tool is required. Install it."
     fi
   done
 
@@ -88,7 +88,7 @@ kube::multinode::main() {
 
   SRC_CERTS_DIR="/root/k8s-certs"
 
-  if [[ ${USE_CONTAINERIZED} == "true" ]]; then
+  if [[ $USE_CONTAINERIZED == true ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
     KUBELET_MOUNT="-v ${K8S_KUBELET_DIR}:${K8S_KUBELET_DIR}:slave"
     CONTAINERIZED_FLAG="--containerized"
@@ -108,7 +108,7 @@ kube::multinode::main() {
     -v /var/log/containers:/var/log/containers:rw \
     -v ${K8S_KUBESRV_DIR}:${K8S_KUBESRV_DIR}:ro"
 
-  if [[ ${USE_CNI} == "true" ]]; then
+  if [[ $USE_CNI == true ]]; then
     KUBELET_MOUNTS="\
       ${KUBELET_MOUNTS} \
       -v /etc/cni/net.d:/etc/cni/net.d:rw \
@@ -167,9 +167,9 @@ kube::multinode::start_etcd() {
 
   # Wait for etcd to come up
   local SECONDS=0
-  while [[ $(curl -fsSL http://${ETCD_IP}:2379/health >/dev/null; echo $?) != 0 ]]; do
+  while ! curl -fsSL http://${ETCD_IP}:2379/health >/dev/null 2>&1; do
     ((SECONDS++))
-    if [[ ${SECONDS} == ${TIMEOUT_FOR_SERVICES} ]]; then
+    if [[ $SECONDS == $TIMEOUT_FOR_SERVICES ]]; then
       kube::log::fatal "etcd failed to start. Exiting..."
     fi
     sleep 1
@@ -236,7 +236,7 @@ kube::multinode::make_shared_kubelet_dir() {
     mount --bind "${K8S_KUBELET_DIR}" "${K8S_KUBELET_DIR}"
     mount --make-shared "${K8S_KUBELET_DIR}"
 
-    kube::log::status "Mounted ${K8S_KUBELET_DIR} with shared propagnation"
+    kube::log::status "Mounted ${K8S_KUBELET_DIR} with shared propagation"
   fi
 }
 
@@ -303,20 +303,20 @@ kube::util::copy_pki_file() {
   [[ -d ${K8S_KEYS_DIR} ]] || rm -fr ${K8S_KEYS_DIR} \
         && mkdir -p ${K8S_KEYS_DIR}
 
-  if [[ "${file}" =~ \.crt$ ]]; then
+  if [[ $file =~ \.crt$ ]]; then
     dstfile=${K8S_CERTS_DIR}/$file
     mode=444
-  elif [[ "${file}" =~ \.key$ ]]; then
+  elif [[ $file =~ \.key$ ]]; then
     dstfile=${K8S_KEYS_DIR}/$file
     mode=400
   else
     kube::log::fatal "Don't know how to handle ${file}"
   fi
 
-  if [[ ! -f "${dstfile}" ]]; then
+  if [[ ! -f $dstfile ]]; then
     # there is no cert/key file, try to copy it
     srcfile=${SRC_CERTS_DIR}/$file
-    if [[ -f "${srcfile}" ]]; then
+    if [[ -f $srcfile ]]; then
       cp -f "${srcfile}" "${dstfile}"
       chmod $mode "${dstfile}"
     else
@@ -399,39 +399,44 @@ kube::helpers::host_platform() {
 # Turndown the local cluster
 kube::multinode::turndown() {
 
+  kube::log::status "Killing all kubernetes containers..."
   KUBE_ERE="kube_|k8s_"
-  if [[ $(docker ps -a | grep -E "${KUBE_ERE}" || true | awk '{print $1}' | wc -l) != 0 ]]; then
-    kube::log::status "Killing all kubernetes containers..."
-    # run twice for sure
-    docker ps | grep -E "${KUBE_ERE}" || true | awk '{print $1}' \
-        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm -f
-    echo hahazzz
-    docker ps | grep -E "${KUBE_ERE}" || true | awk '{print $1}' \
-        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm -f
-
-    # also remove stopped containers
-    docker ps -a | grep -E "${KUBE_ERE}" || true | awk '{print $1}' | xargs --no-run-if-empty docker rm
-  fi
-
-  if [[ -d "${K8S_KUBELET_DIR}" ]]; then
-    if kube::helpers::confirm \
-        "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n]"; then
-
-      kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
-
-      # umount if there are mounts in ${K8S_KUBELET_DIR}
-      if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" || true | awk '{print $3}') ]]; then
-
-        # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
-        mount | grep "${K8S_KUBELET_DIR}/*" || true | awk '{print $3}' | xargs umount >/dev/null
-        mount | grep "${K8S_KUBELET_DIR}/*" || true | awk '{print $3}' | xargs umount >/dev/null
-        umount "${K8S_KUBELET_DIR}" >/dev/null
-        umount "${K8S_KUBELET_DIR}" >/dev/null
-      fi
-
-      # Delete the directory
-      rm -rf "${K8S_KUBELET_DIR}"
+  for ((i=0; i<3; i++)) {
+    uuids=$(docker ps -a | { grep -E "${KUBE_ERE}" || true; } | awk '{print $1}')
+    if [[ -z $uuids ]]; then
+      break
+    else
+      docker stop ${uuids} | xargs docker rm -f
+      [[ $i -ne 0 ]] && sleep 2
     fi
+  }
+
+  if [[ -d $K8S_KUBELET_DIR ]] && kube::helpers::confirm \
+        "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n]"; then
+    kube::log::status "Cleaning up $K8S_KUBELET_DIR directory..."
+
+    for ((i=0; i<3; i++)) {
+      mounts=$(mount | { grep "${K8S_KUBELET_DIR}/" || true; } | awk '{print $3}')
+      if [[ -z $mounts ]]; then
+        break
+      else
+        echo $mounts | xargs umount >/dev/null
+        [[ $i -ne 0 ]] && sleep 2
+      fi
+    }
+
+    for ((i=0; i<3; i++)) {
+      mounts=$(mount | { grep "${K8S_KUBELET_DIR}[[:space:]]" || true; } | awk '{print $3}')
+      if [[ -z $mounts ]]; then
+        break
+      else
+        echo $mounts | xargs umount >/dev/null
+        [[ $i -ne 0 ]] && sleep 2
+      fi
+    }
+
+    # Delete the directory
+    rm -rf $K8S_KUBELET_DIR
   fi
   return 0
 }
