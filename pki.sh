@@ -15,8 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-initialized=0
-
 pki::init() {
   easyrsa_dir=$CA_DIR/easy-rsa-master/easyrsa3
   initialized=1
@@ -36,6 +34,10 @@ pki::create_easyrsa() {
   # Due to GCS caching of public objects, it may take time for this to be widely
   # distributed.
 
+  if [[ ! -v initialized ]]; then
+    pki::init
+  fi
+
   [[ -d $CA_DIR ]] || rm -f $CA_DIR && mkdir -p $CA_DIR \
         && chmod 700 $CA_DIR
 
@@ -50,58 +52,91 @@ pki::create_easyrsa() {
   fi
 
   if [[ ! -d $easyrsa_dir/pki ]]; then
-    cd $easyrsa_dir
-    ./easyrsa init-pki
+    (
+      kube::log::status "PKI creating new pki"
+      cd $easyrsa_dir
+      ./easyrsa init-pki
+    )
   fi
+  easyrsa_created=1
 }
 
 pki::create_ca() {
-  if [[ ! -f $easyrsa_dir/pki/ca.crt ]]; then
-    cd $easyrsa_dir
-    ./easyrsa --batch "--req-cn=${MASTER_IP}@`date +%s`" build-ca nopass
+  if [[ ! -v easyrsa_created ]]; then
+    pki::create_easyrsa
   fi
+
+  if [[ ! -f $easyrsa_dir/pki/ca.crt ]]; then
+    (
+      kube::log::status "PKI creating new ca"
+      cd $easyrsa_dir
+      ./easyrsa --batch "--req-cn=${MASTER_IP}@`date +%s`" build-ca nopass
+    )
+  fi
+  ca_created=1
 }
 
 pki::create_client_cert() {
-  name=$1
+  local name=$1
+
+  if [[ ! -v ca_created ]]; then
+    pki::create_ca
+  fi
+
   if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
-    cd $easyrsa_dir
-    # Make a superuser client cert with subject "O=system:masters, CN=kubecfg"
-    ./easyrsa --dn-mode=org \
-        --req-cn=$name --req-org=system:masters \
-        --req-c= --req-st= --req-city= --req-email= --req-ou= \
-        build-client-full $name nopass
+    (
+      cd $easyrsa_dir
+      # Make a superuser client cert with subject "O=system:masters, CN=kubecfg"
+      ./easyrsa --dn-mode=org \
+                --req-cn=$name --req-org=system:masters \
+                --req-c= --req-st= --req-city= --req-email= --req-ou= \
+                build-client-full $name nopass
+    )
   fi
 }
 
 pki::create_worker_certs() {
-  ip=$1
+  local ip=$1
+
+  if [[ ! -v master_certs_created ]]; then
+    pki::create_master_certs
+  fi
+
   pki::create_client_cert kubelet-$ip
   pki::create_client_cert proxy-$ip
 }
 
 pki::create_master_certs() {
-  extra_sans=${1:-}
-  sans=IP:$MASTER_IP
+  if [[ ! -v ca_created ]]; then
+    pki::create_ca
+  fi
+
+  local extra_sans=DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN
+  local sans=IP:$MASTER_IP
   if [[ -n $extra_sans ]]; then
     sans="$sans,$extra_sans"
   fi
 
-  name=kubernetes-master
+  local name=kubernetes-master
   if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
-    cd $easyrsa_dir
-    ./easyrsa --subject-alt-name=$sans build-server-full $name nopass
+    (
+      kube::log::status "PKI creating new master cert"
+      cd $easyrsa_dir
+      ./easyrsa --subject-alt-name=$sans build-server-full $name nopass
+    )
   fi
 
   pki::create_client_cert kubecfg
   pki::create_client_cert addon-manager
+  master_certs_created=1
+
   pki::create_worker_certs $MASTER_IP
 }
 
 pki::copy_file() {
-  file=$1
+  local file=$1
   
-  if [[ $initialized == 0 ]]; then
+  if [[ ! -v initialized ]]; then
     pki::init
   fi
 
@@ -112,6 +147,7 @@ pki::copy_file() {
         && mkdir -p $K8S_KEYS_DIR
 
   # set pki_src here, dst and modes
+  local pki_srcfile dstfile mode
   if [[ $file =~ \.crt$ ]]; then
     if [[ $file == ca.crt ]]; then
       pki_srcfile=$easyrsa_dir/pki/$file
@@ -128,6 +164,7 @@ pki::copy_file() {
     kube::log::fatal "Don't know how to handle $file"
   fi
 
+  local srcfile
   if [[ ! -f $dstfile ]]; then
     # there is no dst cert/key file, try to copy it from SRC_CERTS_DIR
     srcfile=$SRC_CERTS_DIR/$file
@@ -160,7 +197,7 @@ pki::copy_file() {
         cp -f $pki_srcfile $dstfile
         chmod $mode $dstfile
       else
-        return 0
+        return 1
       fi
     fi
   fi
@@ -178,9 +215,9 @@ pki::copy_file() {
     fi
 
     # verify crt and key match togeter
-    crt_file=$K8S_CERTS_DIR/${file/%key/crt}
-    crt_modulus=$(openssl x509 -noout -modulus -in $crt_file)
-    key_modulus=$(openssl rsa -noout -modulus -in $dstfile)
+    local crt_file=$K8S_CERTS_DIR/${file/%key/crt}
+    local crt_modulus=$(openssl x509 -noout -modulus -in $crt_file)
+    local key_modulus=$(openssl rsa -noout -modulus -in $dstfile)
     if [[ $crt_modulus != $key_modulus ]]; then
       kube::log::fatal "keys $crt_file $dstfile don't match"
     fi
@@ -188,18 +225,24 @@ pki::copy_file() {
 }
 
 pki::place_worker_file() {
-  file=$1
+  local file=$1
   if ! pki::copy_file $file; then
     # create file and try to copy it again
-    kube::log::fatal "There is no src file $file, please fix it"
+    pki::create_worker_certs $IP_ADDRESS
+    if ! pki::copy_file $file; then
+      kube::log::fatal "There is no src file $file, please fix it"
+    fi
   fi
 }
 
 pki::place_master_file() {
-  file=$1
+  local file=$1
   if ! pki::copy_file $file; then
     # create file and try to copy it again
-    kube::log::fatal "There is no src file $file, please fix it"
+    pki::create_master_certs
+    if ! pki::copy_file $file; then
+      kube::log::fatal "There is no src file $file, please fix it"
+    fi
   fi
 }
 

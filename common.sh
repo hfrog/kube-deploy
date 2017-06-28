@@ -22,12 +22,12 @@ set -o pipefail
 
 trap 'echo errexit >&2' ERR
 
-DEBUG="${DEBUG:-false}"
+DEBUG=${DEBUG:-false}
 if [[ $DEBUG == true ]]; then
   set -x
 fi
 
-cd "$(dirname "${BASH_SOURCE}")"
+cd $(dirname $BASH_SOURCE)
 source cni-plugin.sh
 source pki.sh
 
@@ -53,23 +53,23 @@ kube::multinode::main() {
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
 
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
-  IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
+  IP_ADDRESS=${IP_ADDRESS:-$DEFAULT_IP_ADDRESS}
 
   # main tunables
-  MASTER_IP=${MASTER_IP:-${IP_ADDRESS}}
+  MASTER_IP=${MASTER_IP:-$IP_ADDRESS}
   K8S_VERSION=${K8S_VERSION:-"v1.6.4-qiwi.1"}
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
-  CLUSTER_DOMAIN="cluster.local"
-  DEX_IP=${DEX_IP:-${MASTER_IP}}
+  CLUSTER_DOMAIN=cluster.local
+  DEX_IP=${DEX_IP:-$MASTER_IP}
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
 
   ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
   ETCD_NET_PARAM="--net host"
-  ETCD_IP="${ETCD_IP:-${MASTER_IP}}"
+  ETCD_IP=${ETCD_IP:-$MASTER_IP}
 
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
 
@@ -78,41 +78,41 @@ kube::multinode::main() {
   USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
   CNI_ARGS=""
 
-  K8S_KUBESRV_DIR="/srv/kubernetes"
-  K8S_AUTH_DIR="${K8S_KUBESRV_DIR}/auth"
-  K8S_ADDONS_DIR="${K8S_KUBESRV_DIR}/addons"
-  K8S_MANIFESTS_DIR="${K8S_KUBESRV_DIR}/manifests"
-  K8S_CERTS_DIR="${K8S_KUBESRV_DIR}/crt"
-  K8S_KEYS_DIR="${K8S_KUBESRV_DIR}/key"
-  K8S_KUBELET_DIR="/var/lib/kubelet"
-  K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
+  K8S_KUBESRV_DIR=/srv/kubernetes
+  K8S_AUTH_DIR=$K8S_KUBESRV_DIR/auth
+  K8S_ADDONS_DIR=$K8S_KUBESRV_DIR/addons
+  K8S_MANIFESTS_DIR=$K8S_KUBESRV_DIR/manifests
+  K8S_CERTS_DIR=$K8S_KUBESRV_DIR/crt
+  K8S_KEYS_DIR=$K8S_KUBESRV_DIR/key
+  K8S_KUBELET_DIR=/var/lib/kubelet
+  K8S_KUBECONFIG_DIR=$K8S_KUBELET_DIR/kubeconfig
 
-  CA_DIR="${K8S_KUBESRV_DIR}/ca"
+  CA_DIR=$K8S_KUBESRV_DIR/ca
   SRC_CERTS_DIR=${SRC_CERTS_DIR:-"/root/k8s-certs"}
 
   if [[ $USE_CONTAINERIZED == true ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
-    KUBELET_MOUNT="-v ${K8S_KUBELET_DIR}:${K8S_KUBELET_DIR}:slave"
+    KUBELET_MOUNT="-v $K8S_KUBELET_DIR:$K8S_KUBELET_DIR:slave"
     CONTAINERIZED_FLAG="--containerized"
   else
     ROOTFS_MOUNT=""
-    KUBELET_MOUNT="-v ${K8S_KUBELET_DIR}:${K8S_KUBELET_DIR}:shared"
+    KUBELET_MOUNT="-v $K8S_KUBELET_DIR:$K8S_KUBELET_DIR:shared"
     CONTAINERIZED_FLAG=""
   fi
 
   KUBELET_MOUNTS="\
-    ${ROOTFS_MOUNT} \
+    $ROOTFS_MOUNT \
     -v /sys:/sys:rw \
     -v /var/run:/var/run:rw \
     -v /run:/run:rw \
     -v /var/lib/docker:/var/lib/docker:rw \
-    ${KUBELET_MOUNT} \
+    $KUBELET_MOUNT \
     -v /var/log/containers:/var/log/containers:rw \
-    -v ${K8S_KUBESRV_DIR}:${K8S_KUBESRV_DIR}:ro"
+    -v $K8S_KUBESRV_DIR:$K8S_KUBESRV_DIR:ro"
 
   if [[ $USE_CNI == true ]]; then
     KUBELET_MOUNTS="\
-      ${KUBELET_MOUNTS} \
+      $KUBELET_MOUNTS \
       -v /etc/cni/net.d:/etc/cni/net.d:rw \
       -v /opt/cni/bin:/opt/cni/bin:rw"
 
@@ -128,23 +128,24 @@ kube::multinode::main() {
 kube::multinode::log_variables() {
 
   # Output the value of the variables
-  kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
-  kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
-  kube::log::status "REGISTRY is set to: ${REGISTRY}"
-  kube::log::status "IP_POOL is set to: ${IP_POOL}"
-  kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
+  kube::log::status "MASTER_IP is set to: $MASTER_IP"
+  kube::log::status "K8S_VERSION is set to: $K8S_VERSION"
+  kube::log::status "REGISTRY is set to: $REGISTRY"
+  kube::log::status "IP_POOL is set to: $IP_POOL"
+  kube::log::status "SERVICE_NETWORK is set to: $SERVICE_NETWORK"
+  kube::log::status "CLUSTER_DOMAIN is set to: $CLUSTER_DOMAIN"
   kube::log::status "--------------------------------------------"
-  kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
-  kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
-  kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
-  kube::log::status "ARCH is set to: ${ARCH}"
-  kube::log::status "USE_CNI is set to: ${USE_CNI}"
-  kube::log::status "USE_CONTAINERIZED is set to: ${USE_CONTAINERIZED}"
+  kube::log::status "IP_ADDRESS is set to: $IP_ADDRESS"
+  kube::log::status "ETCD_IP is set to: $ETCD_IP"
+  kube::log::status "ETCD_VERSION is set to: $ETCD_VERSION"
+  kube::log::status "ARCH is set to: $ARCH"
+  kube::log::status "USE_CNI is set to: $USE_CNI"
+  kube::log::status "USE_CONTAINERIZED is set to: $USE_CONTAINERIZED"
   kube::log::status "--------------------------------------------"
-  kube::log::status "SRC_CERTS_DIR is set to: ${SRC_CERTS_DIR}"
-  kube::log::status "K8S_KUBESRV_DIR is set to: ${K8S_KUBESRV_DIR}"
-  kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
-  kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
+  kube::log::status "SRC_CERTS_DIR is set to: $SRC_CERTS_DIR"
+  kube::log::status "K8S_KUBESRV_DIR is set to: $K8S_KUBESRV_DIR"
+  kube::log::status "K8S_KUBELET_DIR is set to: $K8S_KUBELET_DIR"
+  kube::log::status "K8S_KUBECONFIG_DIR is set to: $K8S_KUBECONFIG_DIR"
   kube::log::status "--------------------------------------------"
 }
 
@@ -155,21 +156,21 @@ kube::multinode::start_etcd() {
 
   docker run -d \
     --name kube_etcd_$(kube::helpers::small_sha) \
-    --restart=${RESTART_POLICY} \
-    ${ETCD_NET_PARAM} \
-    -v ${K8S_KUBELET_DIR}/etcd:/var/etcd \
-    gcr.io/google_containers/etcd-${ARCH}:${ETCD_VERSION} \
+    --restart=$RESTART_POLICY \
+    $ETCD_NET_PARAM \
+    -v $K8S_KUBELET_DIR/etcd:/var/etcd \
+    gcr.io/google_containers/etcd-$ARCH:$ETCD_VERSION \
     /usr/local/bin/etcd \
       --listen-client-urls=http://0.0.0.0:2379 \
-      --advertise-client-urls=http://${ETCD_IP}:2379 \
+      --advertise-client-urls=http://$ETCD_IP:2379 \
       --listen-peer-urls=http://0.0.0.0:2380 \
-      --initial-advertise-peer-urls=http://${ETCD_IP}:2380 \
-      --initial-cluster=default=http://${ETCD_IP}:2380 \
+      --initial-advertise-peer-urls=http://$ETCD_IP:2380 \
+      --initial-cluster=default=http://$ETCD_IP:2380 \
       --data-dir=/var/etcd/data
 
   # Wait for etcd to come up
   local SECONDS=0
-  while ! curl -fsSL http://${ETCD_IP}:2379/health >/dev/null 2>&1; do
+  while ! curl -fsSL http://$ETCD_IP:2379/health >/dev/null 2>&1; do
     ((SECONDS++))
     if [[ $SECONDS == $TIMEOUT_FOR_SERVICES ]]; then
       kube::log::fatal "etcd failed to start. Exiting..."
@@ -190,20 +191,20 @@ kube::multinode::start_k8s() {
     --net=host \
     --pid=host \
     --privileged \
-    --restart=${RESTART_POLICY} \
+    --restart=$RESTART_POLICY \
     --name kube_kubelet_$(kube::helpers::small_sha) \
-    ${KUBELET_MOUNTS} \
-    ${REGISTRY}/hyperkube-${ARCH}:${K8S_VERSION} \
+    $KUBELET_MOUNTS \
+    $REGISTRY/hyperkube-$ARCH:$K8S_VERSION \
     /hyperkube kubelet \
-      ${KUBELET_ARGS} \
+      $KUBELET_ARGS \
       --allow-privileged \
       --require-kubeconfig \
-      --kubeconfig=${K8S_KUBECONFIG_DIR}/kubeconfig-kubelet.yaml \
-      --cluster-dns=${SERVICE_NETWORK}.10 \
-      --cluster-domain=${CLUSTER_DOMAIN} \
-      ${CNI_ARGS} \
-      ${CONTAINERIZED_FLAG} \
-      --hostname-override=${IP_ADDRESS} \
+      --kubeconfig=$K8S_KUBECONFIG_DIR/kubeconfig-kubelet.yaml \
+      --cluster-dns=$SERVICE_NETWORK.10 \
+      --cluster-domain=$CLUSTER_DOMAIN \
+      $CNI_ARGS \
+      $CONTAINERIZED_FLAG \
+      --hostname-override=$IP_ADDRESS \
       --v=2
 }
 
@@ -216,7 +217,7 @@ kube::multinode::start_k8s_master() {
   kube::multinode::copy_master_pki_files
 
   kube::log::status "Launching Kubernetes master components..."
-  KUBELET_ARGS="--pod-manifest-path=${K8S_MANIFESTS_DIR}"
+  KUBELET_ARGS="--pod-manifest-path=$K8S_MANIFESTS_DIR"
   kube::multinode::start_k8s
 }
 
@@ -234,72 +235,72 @@ kube::multinode::make_shared_kubelet_dir() {
 
   # This only has to be done when the host doesn't use systemd
   if ! kube::helpers::command_exists systemctl; then
-    mkdir -p "${K8S_KUBELET_DIR}"
-    mount --bind "${K8S_KUBELET_DIR}" "${K8S_KUBELET_DIR}"
-    mount --make-shared "${K8S_KUBELET_DIR}"
+    mkdir -p $K8S_KUBELET_DIR
+    mount --bind $K8S_KUBELET_DIR $K8S_KUBELET_DIR
+    mount --make-shared $K8S_KUBELET_DIR
 
-    kube::log::status "Mounted ${K8S_KUBELET_DIR} with shared propagation"
+    kube::log::status "Mounted $K8S_KUBELET_DIR with shared propagation"
   fi
 }
 
 kube::util::expand_vars() {
-    sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
-        -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
-        -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
-        -e "s/CLUSTER_DOMAIN/${CLUSTER_DOMAIN}/g" \
-        -e "s|K8S_KUBECONFIG_DIR|${K8S_KUBECONFIG_DIR}|g" \
-        -e "s|K8S_KUBESRV_DIR|${K8S_KUBESRV_DIR}|g" \
-        -e "s|K8S_AUTH_DIR|${K8S_AUTH_DIR}|g" \
-        -e "s|K8S_ADDONS_DIR|${K8S_ADDONS_DIR}|g" \
-        -e "s|K8S_CERTS_DIR|${K8S_CERTS_DIR}|g" \
-        -e "s|K8S_KEYS_DIR|${K8S_KEYS_DIR}|g" \
-        -e "s|SERVICE_NETWORK|${SERVICE_NETWORK}|g" \
-        -e "s|IP_POOL|${IP_POOL}|g" -e "s/DEX_IP/${DEX_IP}/g" \
+    sed -e "s/REGISTRY/$REGISTRY/g" -e "s/ARCH/$ARCH/g" \
+        -e "s/VERSION/$K8S_VERSION/g" -e "s/ETCD_IP/$ETCD_IP/g" \
+        -e "s/MASTER_IP/$MASTER_IP/g" -e "s/IP_ADDRESS/$IP_ADDRESS/g" \
+        -e "s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g" \
+        -e "s|K8S_KUBECONFIG_DIR|$K8S_KUBECONFIG_DIR|g" \
+        -e "s|K8S_KUBESRV_DIR|$K8S_KUBESRV_DIR|g" \
+        -e "s|K8S_AUTH_DIR|$K8S_AUTH_DIR|g" \
+        -e "s|K8S_ADDONS_DIR|$K8S_ADDONS_DIR|g" \
+        -e "s|K8S_CERTS_DIR|$K8S_CERTS_DIR|g" \
+        -e "s|K8S_KEYS_DIR|$K8S_KEYS_DIR|g" \
+        -e "s|SERVICE_NETWORK|$SERVICE_NETWORK|g" \
+        -e "s|IP_POOL|$IP_POOL|g" -e "s/DEX_IP/$DEX_IP/g" \
         $1
 }
 
 kube::multinode::create_addons() {
   kube::log::status "Creating addons"
-  [[ -d ${K8S_ADDONS_DIR} ]] || rm -fr ${K8S_ADDONS_DIR} \
-        && mkdir -p ${K8S_ADDONS_DIR}
+  [[ -d $K8S_ADDONS_DIR ]] || rm -fr $K8S_ADDONS_DIR \
+        && mkdir -p $K8S_ADDONS_DIR
   for f in addons/*; do
-    kube::util::expand_vars $f > ${K8S_ADDONS_DIR}/$(basename $f)
+    kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
   done
 }
 
 kube::multinode::create_manifests() {
   kube::log::status "Creating manifests"
-  [[ -d ${K8S_MANIFESTS_DIR} ]] || rm -fr ${K8S_MANIFESTS_DIR} \
-        && mkdir -p ${K8S_MANIFESTS_DIR}
+  [[ -d $K8S_MANIFESTS_DIR ]] || rm -fr $K8S_MANIFESTS_DIR \
+        && mkdir -p $K8S_MANIFESTS_DIR
   for f in manifests/*; do
-    kube::util::expand_vars $f > ${K8S_MANIFESTS_DIR}/$(basename $f)
+    kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
 }
 
 kube::multinode::create_kubeconfig() {
   kube::log::status "Creating kubeconfigs"
-  [[ -d ${K8S_KUBECONFIG_DIR} ]] || rm -fr ${K8S_KUBECONFIG_DIR} \
-        && mkdir -p ${K8S_KUBECONFIG_DIR}
+  [[ -d $K8S_KUBECONFIG_DIR ]] || rm -fr $K8S_KUBECONFIG_DIR \
+        && mkdir -p $K8S_KUBECONFIG_DIR
   for f in kubeconfig/*; do
-    kube::util::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
+    kube::util::expand_vars $f > $K8S_KUBECONFIG_DIR/$(basename $f)
   done
 }
 
 kube::multinode::create_basic_auth() {
   kube::log::status "Creating basic auth"
-  [[ -d ${K8S_AUTH_DIR} ]] || rm -fr ${K8S_AUTH_DIR} \
-        && mkdir -p ${K8S_AUTH_DIR} && chmod 700 ${K8S_AUTH_DIR}
+  [[ -d $K8S_AUTH_DIR ]] || rm -fr $K8S_AUTH_DIR \
+        && mkdir -p $K8S_AUTH_DIR && chmod 700 $K8S_AUTH_DIR
   for f in basic_auth.csv; do
-    if [[ ! -f ${K8S_AUTH_DIR}/$f ]]; then
-      kube::util::expand_vars $f > ${K8S_AUTH_DIR}/$f
-      chmod 400 ${K8S_AUTH_DIR}/$f
+    if [[ ! -f $K8S_AUTH_DIR/$f ]]; then
+      kube::util::expand_vars $f > $K8S_AUTH_DIR/$f
+      chmod 400 $K8S_AUTH_DIR/$f
     fi
   done
 }
 
 kube::multinode::copy_worker_pki_files() {
   kube::log::status "Creating worker certs and keys"
-  for f in ca.crt {proxy,kubelet}-${IP_ADDRESS}.{crt,key}; do
+  for f in ca.crt {proxy,kubelet}-$IP_ADDRESS.{crt,key}; do
     pki::place_worker_file $f
   done
 }
@@ -314,7 +315,7 @@ kube::multinode::copy_master_pki_files() {
 kube::helpers::confirm() {
   read -p "$1 " input
 
-  return=1
+  local return=1
   case $input in
     [nN]*)
       return=1
@@ -365,30 +366,30 @@ kube::helpers::host_platform() {
     *)
       kube::log::fatal "Unsupported host arch. Must be x86_64, arm, arm64 or ppc64le.";;
   esac
-  echo "${host_os}/${host_arch}"
+  echo $host_os/$host_arch
 }
 
 # Turndown the local cluster
 kube::multinode::turndown() {
 
   kube::log::status "Killing all kubernetes containers..."
-  KUBE_ERE="kube_|k8s_"
+  local KUBE_ERE="kube_|k8s_"
   for ((i=0; i<3; i++)) {
-    uuids=$(docker ps -a | { grep -E "${KUBE_ERE}" || true; } | awk '{print $1}')
+    local uuids=$(docker ps -a | { grep -E $KUBE_ERE || true; } | awk '{print $1}')
     if [[ -z $uuids ]]; then
       break
     else
-      docker stop ${uuids} | xargs docker rm -f
+      docker stop $uuids | xargs docker rm -f
       [[ $i -ne 0 ]] && sleep 2
     fi
   }
 
   if [[ -d $K8S_KUBELET_DIR ]] && kube::helpers::confirm \
-        "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n]"; then
+        "Do you want to clean $K8S_KUBELET_DIR? [Y/n]"; then
     kube::log::status "Cleaning up $K8S_KUBELET_DIR directory..."
 
     for ((i=0; i<3; i++)) {
-      mounts=$(mount | { grep "${K8S_KUBELET_DIR}/" || true; } | awk '{print $3}')
+      local mounts=$(mount | { grep $K8S_KUBELET_DIR/ || true; } | awk '{print $3}')
       if [[ -z $mounts ]]; then
         break
       else
@@ -398,7 +399,7 @@ kube::multinode::turndown() {
     }
 
     for ((i=0; i<3; i++)) {
-      mounts=$(mount | { grep "${K8S_KUBELET_DIR}[[:space:]]" || true; } | awk '{print $3}')
+      local mounts=$(mount | { grep "$K8S_KUBELET_DIR[[:space:]]" || true; } | awk '{print $3}')
       if [[ -z $mounts ]]; then
         break
       else
@@ -415,22 +416,14 @@ kube::multinode::turndown() {
 
 # Print a status line. Formatted to show up in a stream of output.
 kube::log::status() {
-  timestamp=$(date +"[%m%d %H:%M:%S]")
+  local timestamp=$(date +"[%m%d %H:%M:%S]")
   echo "+++ $timestamp $1"
-  shift
-  for message; do
-    echo "    $message"
-  done
 }
 
 # Log an error and exit
 kube::log::fatal() {
-  timestamp=$(date +"[%m%d %H:%M:%S]")
+  local timestamp=$(date +"[%m%d %H:%M:%S]")
   echo "!!! $timestamp ${1-}" >&2
-  shift
-  for message; do
-    echo "    $message" >&2
-  done
   exit 1
 }
 
