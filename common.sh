@@ -45,7 +45,7 @@ kube::multinode::main() {
   done
 
   # Make sure docker daemon is running
-  if [[ $(docker ps >/dev/null; echo $?) != 0 ]]; then
+  if ! docker ps >/dev/null; then
     kube::log::fatal "Docker is not running on this machine!"
   fi
 

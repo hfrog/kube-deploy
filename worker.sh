@@ -14,13 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Source common.sh
-source $(dirname "${BASH_SOURCE}")/common.sh
+source $(dirname $BASH_SOURCE)/common.sh
 
 # Make sure MASTER_IP is properly set
 if [[ -z ${MASTER_IP} ]]; then
-    echo "Please export MASTER_IP in your env"
-    exit 1
+    kube::log::fatal "Please export MASTER_IP in your env"
 fi
 
 kube::multinode::main

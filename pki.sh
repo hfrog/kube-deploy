@@ -57,7 +57,7 @@ pki::create_easyrsa() {
 
   if [[ ! -d $easyrsa_dir/pki ]]; then
     (
-      kube::log::status "PKI creating new pki"
+      kube::log::status "PKI creating new PKI"
       cd $easyrsa_dir
       ./easyrsa init-pki
     )
@@ -204,7 +204,7 @@ pki::copy_file() {
       cp -f $srcfile $dstfile
       chmod $mode $dstfile
     else
-      # try to copy file from pki
+      # try to copy file from PKI
       if [[ -f $pki_srcfile ]]; then
         # check source mixing
         if [[ ! -v source ]]; then
@@ -260,8 +260,8 @@ pki::place_worker_file() {
     fi
   fi
 
-  # verify worker files with CA from https server cert bundle
-  if [[ $file =~ \.crt$ ]]; then
+  # verify worker PKI files with CA from https server cert bundle
+  if [[ $file =~ \.crt$ && $MASTER_IP != $IP_ADDRESS ]]; then
     local tls_cert_bundle=$K8S_CERTS_DIR/tls_cert_bundle_from_network.pem
     if [[ ! -v got_tls_bundle || ! -f $tls_cert_bundle ]]; then
       # get tls cert bundle from the https cerver
