@@ -116,7 +116,7 @@ pki::create_worker_certs() {
 
 pki::create_master_certs() {
   if [[ $MASTER_IP != $IP_ADDRESS ]]; then
-    kube::log::fatal "Will not create master certs on worker node"
+    kube::log::fatal "Can't create certs on worker node"
   fi
 
   if [[ ! -v ca_created ]]; then
@@ -124,7 +124,7 @@ pki::create_master_certs() {
   fi
 
   local extra_sans=DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN
-  local sans=IP:$MASTER_IP
+  local sans=IP:$MASTER_IP,IP:$SERVICE_NETWORK.1
   if [[ -n $extra_sans ]]; then
     sans="$sans,$extra_sans"
   fi
