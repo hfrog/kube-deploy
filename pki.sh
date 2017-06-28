@@ -34,6 +34,10 @@ pki::create_easyrsa() {
   # Due to GCS caching of public objects, it may take time for this to be widely
   # distributed.
 
+  if [[ $MASTER_IP != $IP_ADDRESS ]]; then
+    kube::log::fatal "Will not create PKI on worker node"
+  fi
+
   if [[ ! -v initialized ]]; then
     pki::init
   fi
@@ -62,13 +66,17 @@ pki::create_easyrsa() {
 }
 
 pki::create_ca() {
+  if [[ $MASTER_IP != $IP_ADDRESS ]]; then
+    kube::log::fatal "Will not create new CA on worker node"
+  fi
+
   if [[ ! -v easyrsa_created ]]; then
     pki::create_easyrsa
   fi
 
   if [[ ! -f $easyrsa_dir/pki/ca.crt ]]; then
     (
-      kube::log::status "PKI creating new ca"
+      kube::log::status "PKI creating new CA"
       cd $easyrsa_dir
       ./easyrsa --batch "--req-cn=${MASTER_IP}@`date +%s`" build-ca nopass
     )
@@ -107,6 +115,10 @@ pki::create_worker_certs() {
 }
 
 pki::create_master_certs() {
+  if [[ $MASTER_IP != $IP_ADDRESS ]]; then
+    kube::log::fatal "Will not create master certs on worker node"
+  fi
+
   if [[ ! -v ca_created ]]; then
     pki::create_ca
   fi
@@ -187,7 +199,7 @@ pki::copy_file() {
         # check source mixing
         if [[ ! -v source ]]; then
           source=$easyrsa_dir
-          kube::log::status "PKI source: easyrsa ca $source"
+          kube::log::status "PKI source: easyrsa CA $source"
         else
           if [[ $source != $easyrsa_dir ]]; then
             kube::log::fatal "PKI source mixing, was $source, now $easyrsa_dir"
