@@ -29,6 +29,7 @@ fi
 
 cd "$(dirname "${BASH_SOURCE}")"
 source cni-plugin.sh
+source pki.sh
 
 kube::multinode::main() {
 
@@ -37,8 +38,8 @@ kube::multinode::main() {
     kube::log::fatal "Please run as root"
   fi
 
-  for tool in curl ip docker; do
-    if [[ ! -f $(which $tool 2>&1) ]]; then
+  for tool in curl ip docker openssl; do
+    if ! kube::helpers::command_exists $tool; then
       kube::log::fatal "The binary $tool is required. Install it."
     fi
   done
@@ -86,7 +87,8 @@ kube::multinode::main() {
   K8S_KUBELET_DIR="/var/lib/kubelet"
   K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
 
-  SRC_CERTS_DIR="/root/k8s-certs"
+  CA_DIR="${K8S_KUBESRV_DIR}/ca"
+  SRC_CERTS_DIR=${SRC_CERTS_DIR:-"/root/k8s-certs"}
 
   if [[ $USE_CONTAINERIZED == true ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
@@ -295,47 +297,17 @@ kube::multinode::create_basic_auth() {
   done
 }
 
-kube::util::copy_pki_file() {
-  file="$1"
-
-  [[ -d ${K8S_CERTS_DIR} ]] || rm -fr ${K8S_CERTS_DIR} \
-        && mkdir -p ${K8S_CERTS_DIR}
-  [[ -d ${K8S_KEYS_DIR} ]] || rm -fr ${K8S_KEYS_DIR} \
-        && mkdir -p ${K8S_KEYS_DIR}
-
-  if [[ $file =~ \.crt$ ]]; then
-    dstfile=${K8S_CERTS_DIR}/$file
-    mode=444
-  elif [[ $file =~ \.key$ ]]; then
-    dstfile=${K8S_KEYS_DIR}/$file
-    mode=400
-  else
-    kube::log::fatal "Don't know how to handle ${file}"
-  fi
-
-  if [[ ! -f $dstfile ]]; then
-    # there is no cert/key file, try to copy it
-    srcfile=${SRC_CERTS_DIR}/$file
-    if [[ -f $srcfile ]]; then
-      cp -f "${srcfile}" "${dstfile}"
-      chmod $mode "${dstfile}"
-    else
-      kube::log::fatal "There is no src file ${file}, please fix it"
-    fi
-  fi
-}
-
 kube::multinode::copy_worker_pki_files() {
   kube::log::status "Creating worker certs and keys"
-  for f in ca.crt ${IP_ADDRESS}-{proxy,kubelet}.{crt,key}; do
-    kube::util::copy_pki_file $f
+  for f in ca.crt {proxy,kubelet}-${IP_ADDRESS}.{crt,key}; do
+    pki::place_worker_file $f
   done
 }
 
 kube::multinode::copy_master_pki_files() {
   kube::log::status "Creating master certs and keys"
   for f in {kubernetes-master,kubecfg,addon-manager}.{crt,key}; do
-    kube::util::copy_pki_file $f
+    pki::place_master_file $f
   done
 }
 
