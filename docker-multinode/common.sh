@@ -43,7 +43,7 @@ kube::multinode::main() {
   K8S_VERSION=${K8S_VERSION:-"v1.5.1-qiwi.3"}
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
-  SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
+  SERVICE_NETWORK=${SERVICE_NETWORK:-"10.0.0"}
   DEX_IP=${DEX_IP:-${MASTER_IP}}
 
 
