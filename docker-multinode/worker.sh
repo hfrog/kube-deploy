@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+USE_CNI=${USE_CNI:-"true"}
+USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
+
 # Source common.sh
 source $(dirname "${BASH_SOURCE}")/common.sh
 
@@ -27,30 +30,12 @@ kube::multinode::main
 
 kube::multinode::log_variables
 
-#kube::multinode::turndown
+kube::multinode::turndown
 
 if [[ ${USE_CNI} == "true" ]]; then
-#  kube::cni::ensure_docker_settings
-
-#  kube::multinode::start_flannel
-  :
-else
-  kube::bootstrap::bootstrap_daemon
-
-  kube::multinode::start_flannel
-
-  kube::bootstrap::restart_docker
+  kube::cni::ensure_docker_settings
 fi
 
 kube::multinode::start_k8s_worker
-
-# If under v1.4.0-alpha.3, run the proxy
-if [[ $((VERSION_MINOR < 4)) == 1 || \
-      ($((VERSION_MINOR <= 4)) == 1 && \
-      ${VERSION_PRERELEASE} == "alpha" && \
-      $((VERSION_PRERELEASE_REV < 3)) == 1) ]]; then
-
-	kube::multinode::start_k8s_worker_proxy
-fi
 
 kube::log::status "Done. After about a minute the node should be ready."

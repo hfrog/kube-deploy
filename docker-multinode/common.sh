@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim: set sw=2 :
 
 # Copyright 2016 The Kubernetes Authors All rights reserved.
 #
@@ -16,9 +17,8 @@
 
 cd "$(dirname "${BASH_SOURCE}")"
 source cni-plugin.sh
-source docker-bootstrap.sh
 
-kube::multinode::main(){
+kube::multinode::main() {
 
   # Require root
   if [[ "$(id -u)" != "0" ]]; then
@@ -36,23 +36,23 @@ kube::multinode::main(){
     kube::log::fatal "Docker is not running on this machine!"
   fi
 
+  # just as note
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
-  LATEST_STABLE_K8S_VERSION='v1.6.4-qiwi.1'
-  K8S_VERSION=${K8S_VERSION:-${LATEST_STABLE_K8S_VERSION}}
+
+  # tunables
+  K8S_VERSION=${K8S_VERSION:-"v1.6.4-qiwi.1"}
+  REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
+  IP_POOL=${IP_POOL:-"10.168.0.0/16"}
+  SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
+  DEX_IP=${DEX_IP:-${MASTER_IP}}
+
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
 
-  if [[ ${ARCH} == "arm" ]]; then
-    ETCD_VERSION=${ETCD_VERSION:-"2.2.5"}
-  else
-    ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
-  fi
-
-  FLANNEL_VERSION=${FLANNEL_VERSION:-"v0.6.1"}
-  FLANNEL_IPMASQ=${FLANNEL_IPMASQ:-"true"}
-  FLANNEL_BACKEND=${FLANNEL_BACKEND:-"udp"}
-  FLANNEL_NETWORK=${FLANNEL_NETWORK:-"10.1.0.0/16"}
+  ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
+  ETCD_NET_PARAM="--net host"
+  ETCD_IP="${ETCD_IP:-${MASTER_IP}}"
 
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
 
@@ -60,21 +60,21 @@ kube::multinode::main(){
   IP_ADDRESS=${IP_ADDRESS:-${DEFAULT_IP_ADDRESS}}
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
-  USE_CNI=${USE_CNI:-"false"}
-  USE_CONTAINERIZED=${USE_CONTAINERIZED:-"false"}
+  USE_CNI=${USE_CNI:-"true"}
+  USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
   CNI_ARGS=""
 
-  BOOTSTRAP_DOCKER_SOCK="unix:///var/run/docker-bootstrap.sock"
-  BOOTSTRAP_DOCKER_PARAM="-H ${BOOTSTRAP_DOCKER_SOCK}"
-  ETCD_NET_PARAM="--net host"
+  K8S_KUBESRV_DIR="/srv/kubernetes"
+  K8S_KUBELET_DIR="/var/lib/kubelet"
+  K8S_KUBECONFIG_DIR="${K8S_KUBELET_DIR}/kubeconfig"
 
   if [[ ${USE_CONTAINERIZED} == "true" ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
-    KUBELET_MOUNT="-v /var/lib/kubelet:/var/lib/kubelet:slave"
+    KUBELET_MOUNT="-v ${K8S_KUBELET_DIR}:${K8S_KUBELET_DIR}:slave"
     CONTAINERIZED_FLAG="--containerized"
   else
     ROOTFS_MOUNT=""
-    KUBELET_MOUNT="-v /var/lib/kubelet:/var/lib/kubelet:shared"
+    KUBELET_MOUNT="-v ${K8S_KUBELET_DIR}:${K8S_KUBELET_DIR}:shared"
     CONTAINERIZED_FLAG=""
   fi
 
@@ -92,14 +92,7 @@ kube::multinode::main(){
       ${KUBELET_MOUNTS} \
       -v /etc/cni/net.d:/etc/cni/net.d:rw \
       -v /opt/cni/bin:/opt/cni/bin:rw"
-  fi
 
-  # Paths
-  FLANNEL_SUBNET_DIR=${FLANNEL_SUBNET_DIR:-/run/flannel}
-
-  if [[ ${USE_CNI} == "true" ]]; then
-
-    BOOTSTRAP_DOCKER_PARAM=""
     ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
     CNI_ARGS="\
       --network-plugin=cni \
@@ -111,21 +104,24 @@ kube::multinode::main(){
 # Ensure everything is OK, docker is running and we're root
 kube::multinode::log_variables() {
 
-  kube::helpers::parse_version ${K8S_VERSION}
-
   # Output the value of the variables
-  kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
-  kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
-  kube::log::status "FLANNEL_VERSION is set to: ${FLANNEL_VERSION}"
-  kube::log::status "FLANNEL_IPMASQ is set to: ${FLANNEL_IPMASQ}"
-  kube::log::status "FLANNEL_NETWORK is set to: ${FLANNEL_NETWORK}"
-  kube::log::status "FLANNEL_BACKEND is set to: ${FLANNEL_BACKEND}"
-  kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
   kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
-  kube::log::status "ARCH is set to: ${ARCH}"
+  kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
+  kube::log::status "REGISTRY is set to: ${REGISTRY}"
+  kube::log::status "IP_POOL is set to: ${IP_POOL}"
+  kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
+  kube::log::status "--------------------------------------------"
   kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
+  kube::log::status "ETCD_IP is set to: ${ETCD_IP}"
+  kube::log::status "ETCD_VERSION is set to: ${ETCD_VERSION}"
+  kube::log::status "ARCH is set to: ${ARCH}"
   kube::log::status "USE_CNI is set to: ${USE_CNI}"
   kube::log::status "USE_CONTAINERIZED is set to: ${USE_CONTAINERIZED}"
+  kube::log::status "RESTART_POLICY is set to: ${RESTART_POLICY}"
+  kube::log::status "--------------------------------------------"
+  kube::log::status "K8S_KUBESRV_DIR is set to: ${K8S_KUBESRV_DIR}"
+  kube::log::status "K8S_KUBELET_DIR is set to: ${K8S_KUBELET_DIR}"
+  kube::log::status "K8S_KUBECONFIG_DIR is set to: ${K8S_KUBECONFIG_DIR}"
   kube::log::status "--------------------------------------------"
 }
 
@@ -134,23 +130,23 @@ kube::multinode::start_etcd() {
 
   kube::log::status "Launching etcd..."
 
-  docker ${BOOTSTRAP_DOCKER_PARAM} run -d \
+  docker run -d \
     --name kube_etcd_$(kube::helpers::small_sha) \
     --restart=${RESTART_POLICY} \
     ${ETCD_NET_PARAM} \
-    -v /var/lib/kubelet/etcd:/var/etcd \
+    -v ${K8S_KUBELET_DIR}/etcd:/var/etcd \
     gcr.io/google_containers/etcd-${ARCH}:${ETCD_VERSION} \
     /usr/local/bin/etcd \
-      --initial-advertise-peer-urls=http://192.168.209.138:2379 \
-      --initial-cluster=default=http://192.168.209.138:2379 \
+      --initial-advertise-peer-urls=http://${ETCD_IP}:2379 \
+      --initial-cluster=default=http://${ETCD_IP}:2379 \
       --listen-client-urls=http://0.0.0.0:2379 \
-      --advertise-client-urls=http://192.168.209.138:2379 \
+      --advertise-client-urls=http://${ETCD_IP}:2379 \
       --listen-peer-urls=http://0.0.0.0:2380 \
       --data-dir=/var/etcd/data
 
   # Wait for etcd to come up
   local SECONDS=0
-  while [[ $(curl -fsSL http://localhost:2379/health 2>&1 1>/dev/null; echo $?) != 0 ]]; do
+  while [[ $(curl -fsSL http://${ETCD_IP}:2379/health 2>&1 1>/dev/null; echo $?) != 0 ]]; do
     ((SECONDS++))
     if [[ ${SECONDS} == ${TIMEOUT_FOR_SERVICES} ]]; then
       kube::log::fatal "etcd failed to start. Exiting..."
@@ -161,53 +157,9 @@ kube::multinode::start_etcd() {
   sleep 2
 }
 
-# Start flannel in docker bootstrap, both for master and worker
-kube::multinode::start_flannel() {
-
-  kube::log::status "Launching flannel..."
-
-  # Set flannel net config (when running on master)
-  if [[ "${MASTER_IP}" == "localhost" ]]; then
-    curl -sSL http://localhost:2379/v2/keys/coreos.com/network/config -XPUT \
-      -d value="{ \"Network\": \"${FLANNEL_NETWORK}\", \"Backend\": {\"Type\": \"${FLANNEL_BACKEND}\"}}"
-  fi
-
-  # Make sure that a subnet file doesn't already exist
-  rm -f ${FLANNEL_SUBNET_DIR}/subnet.env
-
-  docker ${BOOTSTRAP_DOCKER_PARAM} run -d \
-    --name kube_flannel_$(kube::helpers::small_sha) \
-    --restart=${RESTART_POLICY} \
-    --net=host \
-    --privileged \
-    -v /dev/net:/dev/net \
-    -v ${FLANNEL_SUBNET_DIR}:${FLANNEL_SUBNET_DIR} \
-    quay.io/coreos/flannel:${FLANNEL_VERSION}-${ARCH} \
-    /opt/bin/flanneld \
-      --etcd-endpoints=http://${MASTER_IP}:2379 \
-      --ip-masq="${FLANNEL_IPMASQ}" \
-      --iface="${IP_ADDRESS}"
-
-  # Wait for the flannel subnet.env file to be created instead of a timeout. This is faster and more reliable
-  local SECONDS=0
-  while [[ ! -f ${FLANNEL_SUBNET_DIR}/subnet.env ]]; do
-    ((SECONDS++))
-    if [[ ${SECONDS} == ${TIMEOUT_FOR_SERVICES} ]]; then
-      kube::log::fatal "flannel failed to start. Exiting..."
-    fi
-    sleep 1
-  done
-
-  source ${FLANNEL_SUBNET_DIR}/subnet.env
-
-  kube::log::status "FLANNEL_SUBNET is set to: ${FLANNEL_SUBNET}"
-  kube::log::status "FLANNEL_MTU is set to: ${FLANNEL_MTU}"
-}
-
 # Common kubelet runner
 kube::multinode::start_k8s() {
   kube::multinode::create_kubeconfig
-
   kube::multinode::make_shared_kubelet_dir
 
   docker run -d \
@@ -217,13 +169,13 @@ kube::multinode::start_k8s() {
     --restart=${RESTART_POLICY} \
     --name kube_kubelet_$(kube::helpers::small_sha) \
     ${KUBELET_MOUNTS} \
-    dcr.qiwi.com/hyperkube-${ARCH}:${K8S_VERSION} \
+    ${REGISTRY}/hyperkube-${ARCH}:${K8S_VERSION} \
     /hyperkube kubelet \
       ${KUBELET_ARGS} \
       --allow-privileged \
       --require-kubeconfig \
-      --kubeconfig=/var/lib/kubelet/kubeconfig.yaml \
-      --cluster-dns=10.24.0.10 \
+      --kubeconfig=${K8S_KUBELET_DIR}/kubeconfig.yaml \
+      --cluster-dns=${SERVICE_NETWORK}.10 \
       --cluster-domain=cluster.local \
       ${CNI_ARGS} \
       ${CONTAINERIZED_FLAG} \
@@ -245,93 +197,35 @@ kube::multinode::start_k8s_worker() {
   kube::multinode::start_k8s
 }
 
-# Start kube-proxy in a container, for a worker node
-kube::multinode::start_k8s_worker_proxy() {
-
-  kube::log::status "Launching kube-proxy..."
-  docker run -d \
-    --net=host \
-    --privileged \
-    --name kube_proxy_$(kube::helpers::small_sha) \
-    --restart=${RESTART_POLICY} \
-    dcr.qiwi.com/hyperkube-${ARCH}:${K8S_VERSION} \
-    /hyperkube proxy \
-        --kubeconfig=/var/lib/kubelet/kubeconfig.yaml \
-        --v=2
-}
-
-# Turndown the local cluster
-kube::multinode::turndown(){
-
-  # Check if docker bootstrap is running
-  DOCKER_BOOTSTRAP_PID=$(ps aux | grep ${BOOTSTRAP_DOCKER_SOCK} | grep -v "grep" | awk '{print $2}')
-  if [[ ! -z ${DOCKER_BOOTSTRAP_PID} ]]; then
-
-    kube::log::status "Killing docker bootstrap..."
-
-    # Kill the bootstrap docker daemon and it's containers
-    docker -H ${BOOTSTRAP_DOCKER_SOCK} rm -f $(docker -H ${BOOTSTRAP_DOCKER_SOCK} ps -q) >/dev/null 2>/dev/null
-    kill ${DOCKER_BOOTSTRAP_PID}
-  fi
-
-  kube::log::status "Killing all kubernetes containers..."
-
-  if [[ $(docker ps | grep "kube_" | awk '{print $1}' | wc -l) != 0 ]]; then
-    docker rm -f $(docker ps | grep "kube_" | awk '{print $1}')
-  fi
-  if [[ $(docker ps | grep "k8s_" | awk '{print $1}' | wc -l) != 0 ]]; then
-    docker rm -f $(docker ps | grep "k8s_" | awk '{print $1}')
-  fi
-
-  if [[ -d /var/lib/kubelet ]]; then
-    read -p "Do you want to clean /var/lib/kubelet? [Y/n] " clean_kubelet_dir
-
-    case $clean_kubelet_dir in
-      [nN]*)
-        ;; # Do nothing
-      *)
-        # umount if there are mounts in /var/lib/kubelet
-        if [[ ! -z $(mount | grep "/var/lib/kubelet" | awk '{print $3}') ]]; then
-
-          # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
-          mount | grep "/var/lib/kubelet/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          mount | grep "/var/lib/kubelet/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
-          umount /var/lib/kubelet 1>/dev/null 2>/dev/null
-          umount /var/lib/kubelet 1>/dev/null 2>/dev/null
-        fi
-
-        # Delete the directory
-        rm -rf /var/lib/kubelet
-        ;;
-    esac
-  fi
-}
-
-kube::multinode::delete_bridge() {
-  if [[ ! -z $(ip link | grep "$1") ]]; then
-    ip link set $1 down
-    ip link del $1
-  fi
-}
-
 # Make shared kubelet directory
 kube::multinode::make_shared_kubelet_dir() {
 
   # This only has to be done when the host doesn't use systemd
   if ! kube::helpers::command_exists systemctl; then
-    mkdir -p /var/lib/kubelet
-    mount --bind /var/lib/kubelet /var/lib/kubelet
-    mount --make-shared /var/lib/kubelet
+    mkdir -p "${K8S_KUBELET_DIR}"
+    mount --bind "${K8S_KUBELET_DIR}" "${K8S_KUBELET_DIR}"
+    mount --make-shared "${K8S_KUBELET_DIR}"
 
-    kube::log::status "Mounted /var/lib/kubelet with shared propagnation"
+    kube::log::status "Mounted ${K8S_KUBELET_DIR} with shared propagation"
   fi
 }
 
-kube::multinode::create_kubeconfig(){
-  # Create a kubeconfig.yaml file for the proxy daemonset
-  mkdir -p /var/lib/kubelet/kubeconfig
-  sed -e "s|MASTER_IP|${MASTER_IP}|g" kubeconfig.yaml > /var/lib/kubelet/kubeconfig/kubeconfig.yaml
-  cp /var/lib/kubelet/kubeconfig/kubeconfig.yaml /var/lib/kubelet/kubeconfig.yaml
+kube::multinode::expand_vars() {
+    sed -e "s/REGISTRY/${REGISTRY}/g" -e "s/ARCH/${ARCH}/g" \
+        -e "s/VERSION/${K8S_VERSION}/g" -e "s/ETCD_IP/${ETCD_IP}/g" \
+        -e "s/SERVICE_NETWORK/${SERVICE_NETWORK}/g" \
+        -e "s/MASTER_IP/${MASTER_IP}/g" -e "s/IP_ADDRESS/${IP_ADDRESS}/g" \
+        -e "s|IP_POOL|${IP_POOL}|g" -e "s/DEX_IP/${DEX_IP}/g" \
+        $1
+}
+
+kube::multinode::create_kubeconfig() {
+  # Create kubeconfigs for the apiserver and proxy
+  mkdir -p ${K8S_KUBECONFIG_DIR}
+  for f in kubeconfig.yaml; do
+    kube::multinode::expand_vars $f > ${K8S_KUBELET_DIR}/$(basename $f)
+    kube::multinode::expand_vars $f > ${K8S_KUBECONFIG_DIR}/$(basename $f)
+  done
 }
 
 # Check if a command is valid
@@ -339,13 +233,8 @@ kube::helpers::command_exists() {
   command -v "$@" > /dev/null 2>&1
 }
 
-# Backup the current file
-kube::helpers::backup_file(){
-  cp -f ${1} ${1}.backup
-}
-
 # Returns five "random" chars
-kube::helpers::small_sha(){
+kube::helpers::small_sha() {
   date | md5sum | cut -c-5
 }
 
@@ -381,19 +270,47 @@ kube::helpers::host_platform() {
   echo "${host_os}/${host_arch}"
 }
 
-kube::helpers::parse_version() {
-  local -r version_regex="^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-(beta|alpha|qiwi)\\.(0|[1-9][0-9]*))?$"
-  local -r version="${1-}"
-  [[ "${version}" =~ ${version_regex} ]] || {
-    kube::log::fatal "Invalid release version: '${version}', must match regex ${version_regex}"
-    return 1
-  }
-  VERSION_MAJOR="${BASH_REMATCH[1]}"
-  VERSION_MINOR="${BASH_REMATCH[2]}"
-  VERSION_PATCH="${BASH_REMATCH[3]}"
-  VERSION_EXTRA="${BASH_REMATCH[4]}"
-  VERSION_PRERELEASE="${BASH_REMATCH[5]}"
-  VERSION_PRERELEASE_REV="${BASH_REMATCH[6]}"
+# Turndown the local cluster
+kube::multinode::turndown() {
+
+  kube::log::status "Killing all kubernetes containers..."
+
+  KUBE_ERE="kube_|k8s_"
+  if [[ $(docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | wc -l) != 0 ]]; then
+    # run twice for sure
+    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
+    docker ps | grep -E "${KUBE_ERE}" | awk '{print $1}' \
+        | xargs --no-run-if-empty docker stop | xargs --no-run-if-empty docker rm
+
+    # also remove stopped containers
+    docker ps -a | grep -E "${KUBE_ERE}" | awk '{print $1}' | xargs --no-run-if-empty docker rm
+  fi
+
+  if [[ -d "${K8S_KUBELET_DIR}" ]]; then
+    read -p "Do you want to clean ${K8S_KUBELET_DIR}? [Y/n] " clean_kubelet_dir
+
+    case $clean_kubelet_dir in
+      [nN]*)
+        ;; # Do nothing
+      *)
+        kube::log::status "Cleaning up ${K8S_KUBELET_DIR} directory..."
+
+        # umount if there are mounts in ${K8S_KUBELET_DIR}
+        if [[ ! -z $(mount | grep "${K8S_KUBELET_DIR}" | awk '{print $3}') ]]; then
+
+          # The umount command may be a little bit stubborn sometimes, so run the commands twice to ensure the mounts are gone
+          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+          mount | grep "${K8S_KUBELET_DIR}/*" | awk '{print $3}' | xargs umount 1>/dev/null 2>/dev/null
+          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+          umount "${K8S_KUBELET_DIR}" 1>/dev/null 2>/dev/null
+        fi
+
+        # Delete the directory
+        rm -rf "${K8S_KUBELET_DIR}"
+        ;;
+    esac
+  fi
 }
 
 # Print a status line. Formatted to show up in a stream of output.
@@ -416,3 +333,4 @@ kube::log::fatal() {
   done
   exit 1
 }
+

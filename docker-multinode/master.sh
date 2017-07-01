@@ -14,33 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+USE_CNI=${USE_CNI:-"true"}
+USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
+
 # Source common.sh
 source $(dirname "${BASH_SOURCE}")/common.sh
 
-# Set MASTER_IP to localhost when deploying a master
-MASTER_IP=localhost
+# Make sure MASTER_IP is properly set
+if [[ -z ${MASTER_IP} ]]; then
+    echo "Please export MASTER_IP in your env"
+    exit 1
+fi
 
 kube::multinode::main
 
 kube::multinode::log_variables
 
-#kube::multinode::turndown
+kube::multinode::turndown
 
 if [[ ${USE_CNI} == "true" ]]; then
-#  kube::cni::ensure_docker_settings
-
+  kube::cni::ensure_docker_settings
   kube::multinode::start_etcd
-
-#  kube::multinode::start_flannel
-  :
-else
-  kube::bootstrap::bootstrap_daemon
-
-  kube::multinode::start_etcd
-
-  kube::multinode::start_flannel
-
-  kube::bootstrap::restart_docker
 fi
 
 kube::multinode::start_k8s_master
