@@ -40,7 +40,7 @@ kube::multinode::main() {
   LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
 
   # tunables
-  K8S_VERSION=${K8S_VERSION:-"v1.6.4-qiwi.1"}
+  K8S_VERSION=${K8S_VERSION:-"v1.5.1-qiwi.3"}
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
