@@ -2,9 +2,9 @@
 # vim: set sw=2 :
 
 TAG1=${TAG1:-'v1.6.2'}
-TAG2=${TAG2:-'v1.6.4'}
+TAG2=${TAG2:-'v1.6.6'}
 
-KUBERNETES_PATH='../../../../kubernetes'
+KUBERNETES_PATH='../kubernetes'
 
 addons='
   cluster/addons/dashboard                      dashboard-controller.yaml,
