@@ -42,9 +42,7 @@ kube::multinode::main() {
   # tunables
   K8S_VERSION=${K8S_VERSION:-"v1.5.1-qiwi.3"}
   REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
-  IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.0.0"}
-  DEX_IP=${DEX_IP:-${MASTER_IP}}
 
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
@@ -108,7 +106,6 @@ kube::multinode::log_variables() {
   kube::log::status "MASTER_IP is set to: ${MASTER_IP}"
   kube::log::status "K8S_VERSION is set to: ${K8S_VERSION}"
   kube::log::status "REGISTRY is set to: ${REGISTRY}"
-  kube::log::status "IP_POOL is set to: ${IP_POOL}"
   kube::log::status "SERVICE_NETWORK is set to: ${SERVICE_NETWORK}"
   kube::log::status "--------------------------------------------"
   kube::log::status "IP_ADDRESS is set to: ${IP_ADDRESS}"
