@@ -15,17 +15,18 @@ spec:
   - name: kube-controller-manager
     image: REGISTRY/hyperkube-ARCH:VERSION
     command:
-    - /hyperkube
-    - controller-manager
-    - --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig.yaml
-    - --service-account-private-key-file=K8S_KEYS_DIR/kubernetes-master.key
-    - --use-service-account-credentials=true
-    - --root-ca-file=K8S_CERTS_DIR/ca.crt
-    - --min-resync-period=3m
-    - --leader-elect=true
-    - --cluster-cidr=10.1.0.0/16
-    - --profiling=false
-    - --v=2
+    - /bin/sh
+    - -c
+    - /hyperkube controller-manager
+      --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig.yaml
+      --service-account-private-key-file=K8S_KEYS_DIR/kubernetes-master.key
+      --use-service-account-credentials=true
+      --root-ca-file=K8S_CERTS_DIR/ca.crt
+      --min-resync-period=3m
+      --leader-elect=true
+      --cluster-cidr=10.1.0.0/16
+      --profiling=false
+      --v=2 >/var/log/kube-controller-manager.log 2>&1
     resources:
       requests:
         cpu: 200m
@@ -36,6 +37,9 @@ spec:
     - name: kubeconfig
       mountPath: K8S_KUBECONFIG_DIR
       readOnly: true
+    - name: varlog
+      mountPath: /var/log
+      readOnly: false
   volumes:
   - name: data
     hostPath:
@@ -43,3 +47,6 @@ spec:
   - name: kubeconfig
     hostPath:
       path: K8S_KUBECONFIG_DIR
+  - name: varlog
+    hostPath:
+      path: /var/log
