@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-addon-manager
+  namespace: kube-system
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ''
+  labels:
+    component: kube-addon-manager
+spec:
+  hostNetwork: true
+  containers:
+  - name: kube-addon-manager
+    image: gcr.io/google-containers/kube-addon-manager:v6.4-beta.2
+    command:
+    - /bin/bash
+    - -c
+    - /opt/kube-addons.sh >/var/log/kube-addon-manager.log 2>&1
+    resources:
+      requests:
+        cpu: 5m
+        memory: 50Mi
+    env:
+    - name: KUBECTL_OPTS
+      value: --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-addon-manager.yaml
+    volumeMounts:
+    - mountPath: /etc/kubernetes/addons/
+      name: addons
+      readOnly: true
+    - mountPath: K8S_KUBESRV_DIR
+      name: data
+      readOnly: true
+    - mountPath: K8S_KUBECONFIG_DIR
+      name: kubeconfig
+      readOnly: true
+    - mountPath: /var/log
+      name: varlog
+      readOnly: false
+  volumes:
+  - hostPath:
+      path: K8S_ADDONS_DIR
+    name: addons
+  - hostPath:
+      path: K8S_KUBESRV_DIR
+    name: data
+  - hostPath:
+      path: K8S_KUBECONFIG_DIR
+    name: kubeconfig
+  - hostPath:
+      path: /var/log
+    name: varlog
