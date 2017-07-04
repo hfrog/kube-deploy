@@ -1,0 +1,40 @@
+# vim: set sw=2 :
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-scheduler
+  namespace: kube-system
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ''
+  labels:
+    tier: control-plane
+    component: kube-scheduler
+spec:
+  hostNetwork: true
+  containers:
+  - name: kube-scheduler
+    image: REGISTRY/hyperkube-ARCH:VERSION
+    command:
+    - /hyperkube
+    - scheduler
+    - --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig.yaml
+    - --leader-elect=true
+    - --profiling=false
+    - --v=2
+    resources:
+      requests:
+        cpu: 75m
+    volumeMounts:
+    - name: data
+      mountPath: K8S_KUBESRV_DIR
+      readOnly: true
+    - name: kubeconfig
+      mountPath: K8S_KUBECONFIG_DIR
+      readOnly: true
+  volumes:
+  - name: data
+    hostPath:
+      path: K8S_KUBESRV_DIR
+  - name: kubeconfig
+    hostPath:
+      path: K8S_KUBECONFIG_DIR

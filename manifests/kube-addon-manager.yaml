@@ -1,3 +1,4 @@
+# vim: set sw=2 :
 apiVersion: v1
 kind: Pod
 metadata:

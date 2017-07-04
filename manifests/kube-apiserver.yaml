@@ -1,0 +1,54 @@
+# vim: set sw=2 :
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver
+  namespace: kube-system
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ''
+  labels:
+    tier: control-plane
+    component: kube-apiserver
+spec:
+  hostNetwork: true
+  containers:
+  - name: kube-apiserver
+    image: REGISTRY/hyperkube-ARCH:VERSION
+    command:
+    - /hyperkube
+    - apiserver
+    - --service-cluster-ip-range=SERVICE_NETWORK.1/24
+    - --insecure-port=0
+    - --secure-port=443
+    - --etcd-servers=http://ETCD_IP:2379
+    - --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny
+    - --client-ca-file=K8S_CERTS_DIR/ca.crt
+    - --basic-auth-file=K8S_AUTH_DIR/basic_auth.csv
+    - --min-request-timeout=300
+    - --tls-cert-file=K8S_CERTS_DIR/kubernetes-master-bundle.pem
+    - --tls-private-key-file=K8S_KEYS_DIR/kubernetes-master.key
+    - --tls-ca-file=K8S_CERTS_DIR/ca.crt
+    - --service-account-lookup=true
+    - --service-account-key-file=K8S_KEYS_DIR/kubernetes-master.key
+    - --authorization-mode=RBAC
+    - --allow-privileged=true
+    - --anonymous-auth=false
+    - --profiling=false
+    - --v=2
+    resources:
+      requests:
+        cpu: 250m
+    volumeMounts:
+    - name: data
+      mountPath: K8S_KUBESRV_DIR
+      readOnly: true
+    - name: kubeconfig
+      mountPath: K8S_KUBECONFIG_DIR
+      readOnly: true
+  volumes:
+  - name: data
+    hostPath:
+      path: K8S_KUBESRV_DIR
+  - name: kubeconfig
+    hostPath:
+      path: K8S_KUBECONFIG_DIR
