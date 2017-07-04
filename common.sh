@@ -20,7 +20,11 @@ set -o errtrace
 set -o nounset
 set -o pipefail
 
-trap 'echo errexit >&2' ERR
+error_report() {
+  echo "errexit on line $(caller)" >&2
+}
+
+trap error_report ERR
 
 DEBUG=${DEBUG:-false}
 if [[ $DEBUG == true ]]; then
