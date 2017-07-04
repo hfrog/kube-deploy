@@ -173,16 +173,12 @@ kube::multinode::start_etcd() {
       --data-dir=/var/etcd/data
 
   # Wait for etcd to come up
-  local SECONDS=0
-  while ! curl -fsSL http://$ETCD_IP:2379/health >/dev/null 2>&1; do
-    ((SECONDS++))
-    if [[ $SECONDS == $TIMEOUT_FOR_SERVICES ]]; then
+  SECONDS=0 # bash special variable
+  while ! { sleep 1 && curl -fsSL http://$ETCD_IP:2379/health >/dev/null 2>&1; }; do
+    if [[ $SECONDS -gt $TIMEOUT_FOR_SERVICES ]]; then
       kube::log::fatal "etcd failed to start. Exiting..."
     fi
-    sleep 1
   done
-
-  sleep 2
 }
 
 # Common kubelet runner
