@@ -39,6 +39,16 @@ spec:
     resources:
       requests:
         cpu: 250m
+# probe doesn't work because of authn
+# https://github.com/kubernetes/kubernetes/issues/43540
+#    livenessProbe:
+#      httpGet:
+#        host: 127.0.0.1
+#        port: 443
+#        path: /healthz
+#        scheme: HTTPS
+#      initialDelaySeconds: 15
+#      timeoutSeconds: 15
     volumeMounts:
     - name: data
       mountPath: K8S_KUBESRV_DIR

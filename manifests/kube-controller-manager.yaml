@@ -30,6 +30,13 @@ spec:
     resources:
       requests:
         cpu: 200m
+    livenessProbe:
+      httpGet:
+        host: 127.0.0.1
+        port: 10252
+        path: /healthz
+      initialDelaySeconds: 15
+      timeoutSeconds: 15
     volumeMounts:
     - name: data
       mountPath: K8S_KUBESRV_DIR
