@@ -15,18 +15,18 @@
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: k8s-proxy-v1
+  name: kube-proxy
   namespace: kube-system
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ''
   labels:
     k8s-app: k8s-proxy
-    version: v1
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   template:
     metadata:
       labels:
         k8s-app: k8s-proxy
-        version: v1
     spec:
       hostNetwork: true
       containers:
@@ -37,6 +37,9 @@ spec:
         - proxy
         - --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-proxy.yaml
         - --v=2
+        resources:
+          requests:
+            cpu: 100m
         securityContext:
           privileged: true
         volumeMounts:
