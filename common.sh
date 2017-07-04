@@ -210,11 +210,11 @@ kube::multinode::start_k8s() {
 
 # Start kubelet first and then the master components as pods
 kube::multinode::start_k8s_master() {
-  kube::multinode::create_addons
-  kube::multinode::create_manifests
-  kube::multinode::create_basic_auth
   kube::multinode::copy_worker_pki_files
   kube::multinode::copy_master_pki_files
+  kube::multinode::create_basic_auth
+  kube::multinode::create_manifests
+  kube::multinode::create_addons
 
   kube::log::status "Launching Kubernetes master components..."
   KUBELET_ARGS="--pod-manifest-path=$K8S_MANIFESTS_DIR"
@@ -307,7 +307,7 @@ kube::multinode::copy_worker_pki_files() {
 
 kube::multinode::copy_master_pki_files() {
   kube::log::status "Creating master certs and keys"
-  for f in {kubernetes-master,kubecfg,addon-manager}.{crt,key}; do
+  for f in {kubernetes-master,dex,kubecfg,addon-manager}.{crt,key}; do
     pki::place_master_file $f
   done
 }

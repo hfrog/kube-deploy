@@ -123,20 +123,24 @@ pki::create_master_certs() {
     pki::create_ca
   fi
 
-  local extra_sans=DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN
-  local sans=IP:$MASTER_IP,IP:$SERVICE_NETWORK.1
-  if [[ -n $extra_sans ]]; then
-    sans="$sans,$extra_sans"
-  fi
+  local name sans
+  for name in kubernetes-master dex; do
+    if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
+      kube::log::status "PKI creating server cert for $name"
 
-  local name=kubernetes-master
-  if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
-    (
-      kube::log::status "PKI creating new master cert"
-      cd $easyrsa_dir
-      ./easyrsa --subject-alt-name=$sans build-server-full $name nopass
-    )
-  fi
+      if [[ $name == kubernetes-master ]]; then
+        sans="IP:$MASTER_IP,IP:$SERVICE_NETWORK.1,DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN"
+      elif [[ $name == dex ]]; then
+        sans=IP:$MASTER_IP
+      else
+        kube::log::fatal "Unknown master cert $name"
+      fi
+      (
+        cd $easyrsa_dir
+        ./easyrsa --subject-alt-name=$sans build-server-full $name nopass
+      )
+    fi
+  done
 
   pki::create_client_cert kubecfg
   pki::create_client_cert addon-manager
@@ -226,6 +230,13 @@ pki::copy_file() {
 
   if [[ $file == kubernetes-master.crt ]]; then
     pki::place_tls_cert_bundle
+  fi
+
+  if [[ $file == dex.crt ]]; then
+    # remove text from cert
+    mv $dstfile $dstfile-
+    openssl x509 -in $dstfile- -out $dstfile
+    rm $dstfile-
   fi
 
   # verify certs and keys
