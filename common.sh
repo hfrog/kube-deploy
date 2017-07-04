@@ -372,13 +372,13 @@ kube::helpers::host_platform() {
 # Turndown the local cluster
 kube::multinode::turndown() {
 
-  kube::log::status "Killing all kubernetes containers..."
   local KUBE_ERE="kube_|k8s_"
   for ((i=0; i<3; i++)) {
     local uuids=$(docker ps -a | { grep -E $KUBE_ERE || true; } | awk '{print $1}')
     if [[ -z $uuids ]]; then
       break
     else
+      kube::log::status "Killing all kubernetes containers (pass $i)..."
       docker stop $uuids | xargs docker rm -f
       [[ $i -ne 0 ]] && sleep 2
     fi
