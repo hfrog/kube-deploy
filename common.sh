@@ -62,7 +62,7 @@ kube::multinode::main() {
   # main tunables
   MASTER_IP=${MASTER_IP:-$IP_ADDRESS}
   K8S_VERSION=${K8S_VERSION:-"v1.7.0"}
-  REGISTRY=${REGISTRY:-"dcr.qiwi.com"}
+  REGISTRY=${REGISTRY:-"gcr.io/google_containers"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
   CLUSTER_DOMAIN=cluster.local
@@ -243,7 +243,7 @@ kube::multinode::make_shared_kubelet_dir() {
 }
 
 kube::util::expand_vars() {
-    sed -e "s/REGISTRY/$REGISTRY/g" -e "s/ARCH/$ARCH/g" \
+    sed -e "s|REGISTRY|$REGISTRY|g" -e "s/ARCH/$ARCH/g" \
         -e "s/VERSION/$K8S_VERSION/g" -e "s/ETCD_IP/$ETCD_IP/g" \
         -e "s/MASTER_IP/$MASTER_IP/g" -e "s/IP_ADDRESS/$IP_ADDRESS/g" \
         -e "s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g" \
