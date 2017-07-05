@@ -276,7 +276,9 @@ pki::place_worker_file() {
     local tls_cert_bundle=$K8S_CERTS_DIR/tls_cert_bundle_from_network.pem
     if [[ ! -v got_tls_bundle || ! -f $tls_cert_bundle ]]; then
       # get tls cert bundle from the https cerver
-      openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null > $tls_cert_bundle
+      if ! openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null > $tls_cert_bundle; then
+        kube::log::fatal "openssl can't connect to master $MASTER_IP:443"
+      fi
       got_tls_bundle=1
     fi
 
