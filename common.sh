@@ -111,7 +111,7 @@ kube::multinode::main() {
     -v /run:/run:rw \
     -v /var/lib/docker:/var/lib/docker:rw \
     $KUBELET_MOUNT \
-    -v /var/log/containers:/var/log/containers:rw \
+    -v /var/log:/var/log:rw \
     -v $K8S_KUBESRV_DIR:$K8S_KUBESRV_DIR:ro \
     -v /etc/cni/net.d:/etc/cni/net.d:rw \
     -v /opt/cni/bin:/opt/cni/bin:rw"
@@ -187,7 +187,7 @@ kube::multinode::start_k8s() {
     --name kube_kubelet_$(kube::helpers::small_sha) \
     $KUBELET_MOUNTS \
     $REGISTRY/hyperkube-$ARCH:$K8S_VERSION \
-    /hyperkube kubelet \
+    /bin/sh -c "/hyperkube kubelet \
       --pod-manifest-path=$K8S_MANIFESTS_DIR \
       --allow-privileged \
       --require-kubeconfig \
@@ -197,7 +197,7 @@ kube::multinode::start_k8s() {
       $CNI_ARGS \
       $CONTAINERIZED_FLAG \
       --hostname-override=$IP_ADDRESS \
-      --v=2
+      --v=2 >/var/log/kubelet.log 2>&1"
 }
 
 # Start kubelet first and then the master components as pods
