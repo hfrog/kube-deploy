@@ -32,6 +32,11 @@ spec:
       --service-account-lookup=true
       --service-account-key-file=K8S_KEYS_DIR/kubernetes-master.key
       --authorization-mode=K8S_AUTHZ_MODE
+      --oidc-issuer-url=https://DEX_IP:32000
+      --oidc-client-id=kubernetes
+      --oidc-ca-file=K8S_CERTS_DIR/ca.crt
+      --oidc-username-claim=email
+      --oidc-groups-claim=groups
       --allow-privileged=true
       --anonymous-auth=false
       --profiling=false
