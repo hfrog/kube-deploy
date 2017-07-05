@@ -66,6 +66,7 @@ kube::multinode::main() {
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
   CLUSTER_DOMAIN=cluster.local
+  RBAC=${RBAC:-true}
   DEX_IP=${DEX_IP:-$MASTER_IP}
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
@@ -104,6 +105,12 @@ kube::multinode::main() {
     CONTAINERIZED_FLAG=""
   fi
 
+  if [[ $RBAC == true ]]; then
+    K8S_AUTHZ_MODE=RBAC
+  else
+    K8S_AUTHZ_MODE=AlwaysAllow
+  fi
+
   KUBELET_MOUNTS="\
     $ROOTFS_MOUNT \
     -v /sys:/sys:rw \
@@ -132,6 +139,7 @@ kube::multinode::log_variables() {
   kube::log::status "IP_POOL is set to: $IP_POOL"
   kube::log::status "SERVICE_NETWORK is set to: $SERVICE_NETWORK"
   kube::log::status "CLUSTER_DOMAIN is set to: $CLUSTER_DOMAIN"
+  kube::log::status "Authorization mode is set to: $K8S_AUTHZ_MODE"
   kube::log::status "--------------------------------------------"
   kube::log::status "IP_ADDRESS is set to: $IP_ADDRESS"
   kube::log::status "ETCD_IP is set to: $ETCD_IP"
@@ -239,6 +247,7 @@ kube::util::expand_vars() {
         -e "s/VERSION/$K8S_VERSION/g" -e "s/ETCD_IP/$ETCD_IP/g" \
         -e "s/MASTER_IP/$MASTER_IP/g" -e "s/IP_ADDRESS/$IP_ADDRESS/g" \
         -e "s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g" \
+        -e "s/K8S_AUTHZ_MODE/$K8S_AUTHZ_MODE/g" \
         -e "s|K8S_KUBECONFIG_DIR|$K8S_KUBECONFIG_DIR|g" \
         -e "s|K8S_KUBESRV_DIR|$K8S_KUBESRV_DIR|g" \
         -e "s|K8S_AUTH_DIR|$K8S_AUTH_DIR|g" \

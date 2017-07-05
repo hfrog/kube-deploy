@@ -31,7 +31,7 @@ spec:
       --tls-ca-file=K8S_CERTS_DIR/ca.crt
       --service-account-lookup=true
       --service-account-key-file=K8S_KEYS_DIR/kubernetes-master.key
-      --authorization-mode=RBAC
+      --authorization-mode=K8S_AUTHZ_MODE
       --allow-privileged=true
       --anonymous-auth=false
       --profiling=false
