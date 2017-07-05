@@ -188,7 +188,7 @@ kube::multinode::start_k8s() {
     $KUBELET_MOUNTS \
     $REGISTRY/hyperkube-$ARCH:$K8S_VERSION \
     /hyperkube kubelet \
-      $KUBELET_ARGS \
+      --pod-manifest-path=$K8S_MANIFESTS_DIR \
       --allow-privileged \
       --require-kubeconfig \
       --kubeconfig=$K8S_KUBECONFIG_DIR/kubeconfig-kubelet.yaml \
@@ -205,20 +205,19 @@ kube::multinode::start_k8s_master() {
   kube::multinode::copy_worker_pki_files
   kube::multinode::copy_master_pki_files
   kube::multinode::create_basic_auth
-  kube::multinode::create_manifests
+  kube::multinode::create_master_manifests
   kube::multinode::create_addons
 
   kube::log::status "Launching Kubernetes master components..."
-  KUBELET_ARGS="--pod-manifest-path=$K8S_MANIFESTS_DIR"
   kube::multinode::start_k8s
 }
 
 # Start kubelet in a container, for a worker node
 kube::multinode::start_k8s_worker() {
   kube::multinode::copy_worker_pki_files
+  kube::multinode::create_worker_manifests
 
   kube::log::status "Launching Kubernetes worker components..."
-  KUBELET_ARGS=""
   kube::multinode::start_k8s
 }
 
@@ -260,11 +259,20 @@ kube::multinode::create_addons() {
   done
 }
 
-kube::multinode::create_manifests() {
+kube::multinode::create_master_manifests() {
   kube::log::status "Creating manifests"
   [[ -d $K8S_MANIFESTS_DIR ]] || rm -fr $K8S_MANIFESTS_DIR \
         && mkdir -p $K8S_MANIFESTS_DIR
   for f in manifests/*; do
+    kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
+  done
+}
+
+kube::multinode::create_worker_manifests() {
+  kube::log::status "Creating manifests"
+  [[ -d $K8S_MANIFESTS_DIR ]] || rm -fr $K8S_MANIFESTS_DIR \
+        && mkdir -p $K8S_MANIFESTS_DIR
+  for f in manifests/kube-proxy.yaml; do
     kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
 }
