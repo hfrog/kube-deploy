@@ -78,9 +78,7 @@ kube::multinode::main() {
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
 
   TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
-  USE_CNI=${USE_CNI:-"true"}
   USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
-  CNI_ARGS=""
 
   K8S_KUBESRV_DIR=/srv/kubernetes
   K8S_AUTH_DIR=$K8S_KUBESRV_DIR/auth
@@ -93,6 +91,8 @@ kube::multinode::main() {
 
   CA_DIR=$K8S_KUBESRV_DIR/ca
   SRC_CERTS_DIR=${SRC_CERTS_DIR:-"/root/k8s-certs"}
+
+  ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
 
   if [[ $USE_CONTAINERIZED == true ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
@@ -112,20 +112,14 @@ kube::multinode::main() {
     -v /var/lib/docker:/var/lib/docker:rw \
     $KUBELET_MOUNT \
     -v /var/log/containers:/var/log/containers:rw \
-    -v $K8S_KUBESRV_DIR:$K8S_KUBESRV_DIR:ro"
+    -v $K8S_KUBESRV_DIR:$K8S_KUBESRV_DIR:ro \
+    -v /etc/cni/net.d:/etc/cni/net.d:rw \
+    -v /opt/cni/bin:/opt/cni/bin:rw"
 
-  if [[ $USE_CNI == true ]]; then
-    KUBELET_MOUNTS="\
-      $KUBELET_MOUNTS \
-      -v /etc/cni/net.d:/etc/cni/net.d:rw \
-      -v /opt/cni/bin:/opt/cni/bin:rw"
-
-    ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
-    CNI_ARGS="\
-      --network-plugin=cni \
-      --cni-conf-dir=/etc/cni/net.d \
-      --cni-bin-dir=/opt/cni/bin"
-  fi
+  CNI_ARGS="\
+    --network-plugin=cni \
+    --cni-conf-dir=/etc/cni/net.d \
+    --cni-bin-dir=/opt/cni/bin"
 }
 
 # Ensure everything is OK, docker is running and we're root
@@ -143,8 +137,6 @@ kube::multinode::log_variables() {
   kube::log::status "ETCD_IP is set to: $ETCD_IP"
   kube::log::status "ETCD_VERSION is set to: $ETCD_VERSION"
   kube::log::status "ARCH is set to: $ARCH"
-  kube::log::status "USE_CNI is set to: $USE_CNI"
-  kube::log::status "USE_CONTAINERIZED is set to: $USE_CONTAINERIZED"
   kube::log::status "--------------------------------------------"
   kube::log::status "SRC_CERTS_DIR is set to: $SRC_CERTS_DIR"
   kube::log::status "K8S_KUBESRV_DIR is set to: $K8S_KUBESRV_DIR"

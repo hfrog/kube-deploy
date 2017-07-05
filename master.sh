@@ -28,11 +28,9 @@ else
 fi
 
 kube::multinode::turndown
+kube::cni::ensure_docker_settings
 
-if [[ ${USE_CNI} == "true" ]]; then
-  kube::cni::ensure_docker_settings
-  kube::multinode::start_etcd
-fi
+kube::multinode::start_etcd
 
 kube::multinode::start_k8s_master
 
