@@ -232,13 +232,6 @@ pki::copy_file() {
     pki::place_tls_cert_bundle
   fi
 
-  if [[ $file == dex.crt ]]; then
-    # remove text from cert
-    mv $dstfile $dstfile-
-    openssl x509 -in $dstfile- -out $dstfile
-    rm $dstfile-
-  fi
-
   # verify certs and keys
   if [[ $file =~ \.crt$ ]]; then
     # verify crt issuer
