@@ -118,7 +118,7 @@ kube::multinode::main() {
     -v /run:/run:rw \
     -v /var/lib/docker:/var/lib/docker:rw \
     $KUBELET_MOUNT \
-    -v /var/log:/var/log:rw \
+    -v /var/log/kubernetes:/var/log/kubernetes:rw \
     -v $K8S_KUBESRV_DIR:$K8S_KUBESRV_DIR:ro \
     -v /etc/cni/net.d:/etc/cni/net.d:rw \
     -v /opt/cni/bin:/opt/cni/bin:rw"
@@ -205,7 +205,7 @@ kube::multinode::start_k8s() {
       $CNI_ARGS \
       $CONTAINERIZED_FLAG \
       --hostname-override=$IP_ADDRESS \
-      --v=2 >/var/log/kubelet.log 2>&1"
+      --v=2 >/var/log/kubernetes/kubelet.log 2>&1"
 }
 
 # Start kubelet first and then the master components as pods

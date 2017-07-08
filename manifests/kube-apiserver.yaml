@@ -40,7 +40,7 @@ spec:
       --allow-privileged=true
       --anonymous-auth=false
       --profiling=false
-      --v=2 >/var/log/kube-apiserver.log 2>&1
+      --v=2 >/var/log/kubernetes/kube-apiserver.log 2>&1
     resources:
       requests:
         cpu: 250m
@@ -62,7 +62,7 @@ spec:
       mountPath: K8S_KUBECONFIG_DIR
       readOnly: true
     - name: varlog
-      mountPath: /var/log
+      mountPath: /var/log/kubernetes
       readOnly: false
   volumes:
   - name: data
@@ -73,4 +73,4 @@ spec:
       path: K8S_KUBECONFIG_DIR
   - name: varlog
     hostPath:
-      path: /var/log
+      path: /var/log/kubernetes
