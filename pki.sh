@@ -195,7 +195,7 @@ pki::verify_crt() {
   local ca=$1
   local crt=$2
   if ! openssl verify -CAfile $ca $crt >/dev/null; then
-    kube::log::fatal "Failed openssl verify $crt on $ca"
+    kube::log::fatal "Failed openssl verify $crt on $ca. May be you've forgotten to clear $K8S_CERTS_DIR and $K8S_KEYS_DIR"
   fi
 }
 
