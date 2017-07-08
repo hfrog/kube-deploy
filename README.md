@@ -4,10 +4,12 @@
 
 ## Features
 
+* Inspired by and based on <https://github.com/kubernetes/kube-deploy>
 * Kubernetes v1.7.0
+* Self-hosted
 * Calico networking
 * Dashboard
-* RBAC is turned on
+* RBAC
 * By default, only user admin:admin is accepted
 
 ### Prerequisites
