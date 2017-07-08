@@ -242,6 +242,11 @@ kube::multinode::make_shared_kubelet_dir() {
   fi
 }
 
+kube::util::assure_dir() {
+  dir=$1
+  [[ -d $dir ]] || rm -f $dir && mkdir -p $dir
+}
+
 kube::util::expand_vars() {
     sed -e "s|REGISTRY|$REGISTRY|g" -e "s/ARCH/$ARCH/g" \
         -e "s/VERSION/$K8S_VERSION/g" -e "s/ETCD_IP/$ETCD_IP/g" \
@@ -261,8 +266,7 @@ kube::util::expand_vars() {
 
 kube::multinode::create_addons() {
   kube::log::status "Creating addons"
-  [[ -d $K8S_ADDONS_DIR ]] || rm -fr $K8S_ADDONS_DIR \
-        && mkdir -p $K8S_ADDONS_DIR
+  kube::util::assure_dir $K8S_ADDONS_DIR
   for f in addons/*; do
     kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
   done
@@ -270,8 +274,7 @@ kube::multinode::create_addons() {
 
 kube::multinode::create_master_manifests() {
   kube::log::status "Creating master manifests"
-  [[ -d $K8S_MANIFESTS_DIR ]] || rm -fr $K8S_MANIFESTS_DIR \
-        && mkdir -p $K8S_MANIFESTS_DIR
+  kube::util::assure_dir $K8S_MANIFESTS_DIR
   for f in manifests/*; do
     kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
@@ -279,8 +282,7 @@ kube::multinode::create_master_manifests() {
 
 kube::multinode::create_worker_manifests() {
   kube::log::status "Creating worker manifests"
-  [[ -d $K8S_MANIFESTS_DIR ]] || rm -fr $K8S_MANIFESTS_DIR \
-        && mkdir -p $K8S_MANIFESTS_DIR
+  kube::util::assure_dir $K8S_MANIFESTS_DIR
   for f in manifests/kube-proxy.yaml; do
     kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
@@ -288,8 +290,7 @@ kube::multinode::create_worker_manifests() {
 
 kube::multinode::create_kubeconfig() {
   kube::log::status "Creating kubeconfigs"
-  [[ -d $K8S_KUBECONFIG_DIR ]] || rm -fr $K8S_KUBECONFIG_DIR \
-        && mkdir -p $K8S_KUBECONFIG_DIR
+  kube::util::assure_dir $K8S_KUBECONFIG_DIR
   for f in kubeconfig/*; do
     kube::util::expand_vars $f > $K8S_KUBECONFIG_DIR/$(basename $f)
   done
@@ -297,8 +298,7 @@ kube::multinode::create_kubeconfig() {
 
 kube::multinode::create_basic_auth() {
   kube::log::status "Creating basic auth"
-  [[ -d $K8S_AUTH_DIR ]] || rm -fr $K8S_AUTH_DIR \
-        && mkdir -p $K8S_AUTH_DIR && chmod 700 $K8S_AUTH_DIR
+  kube::util::assure_dir $K8S_AUTH_DIR
   for f in basic_auth.csv; do
     if [[ ! -f $K8S_AUTH_DIR/$f ]]; then
       kube::util::expand_vars $f > $K8S_AUTH_DIR/$f

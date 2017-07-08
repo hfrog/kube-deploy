@@ -42,8 +42,7 @@ pki::create_easyrsa() {
     pki::init
   fi
 
-  [[ -d $CA_DIR ]] || rm -f $CA_DIR && mkdir -p $CA_DIR \
-        && chmod 700 $CA_DIR
+  kube::util::assure_dir $CA_DIR && chmod 700 $CA_DIR
 
   # Use ~/kube/easy-rsa.tar.gz if it exists, so that it can be
   # pre-pushed in cases where an outgoing connection is not allowed.
@@ -151,6 +150,11 @@ pki::create_master_certs() {
 
 pki::pki_srcfile() {
   local file=$1 pki_srcfile
+
+  if [[ ! -v initialized ]]; then
+    pki::init
+  fi
+
   if [[ $file =~ \.crt$ ]]; then
     if [[ $file == ca.crt ]]; then
       pki_srcfile=$easyrsa_dir/pki/$file
@@ -179,12 +183,10 @@ pki::dstfile() {
 
 pki::dstfile_mode() {
   local file=$1 mode
-  if [[ $file =~ \.crt$ ]]; then
-    mode=444
-  elif [[ $file =~ \.key$ ]]; then
+  if [[ $file =~ \.key$ ]]; then
     mode=400
   else
-    kube::log::fatal "Don't know how to handle $file"
+    mode=444
   fi
   echo $mode
 }
@@ -229,17 +231,35 @@ pki::verify_file() {
 }
 
 pki::place_tls_cert_bundle() {
-  # make bundle for HTTPS
+  # make bundle for apiserver
   local tls_cert_bundle=$(pki::dstfile kubernetes-master-bundle.pem)
   if [[ ! -f $tls_cert_bundle ]]; then
-    openssl x509 -outform PEM < $(pki::dstfile kubernetes-master.crt) > $tls_cert_bundle
-    cat $(pki::dstfile ca.crt) >> $tls_cert_bundle
-    chmod 444 $tls_cert_bundle
+    local crt
+    for crt in kubernetes-master.crt ca.crt; do
+      openssl x509 -outform PEM < $(pki::dstfile $crt) >> $tls_cert_bundle
+    done
+    chmod $(pki::dstfile_mode $tls_cert_bundle) $tls_cert_bundle
+  fi
+}
+
+pki::get_cert_bundle_from_master() {
+  local bundle=$1
+  if [[ ! -v got_bundle || ! -f $bundle ]]; then
+    # get tls cert bundle from the https cerver
+    if ! openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null >$bundle; then
+      kube::log::fatal "Openssl can't connect to master $MASTER_IP:443"
+    fi
+    got_bundle=1
   fi
 }
 
 pki::srcbase() {
   local srcfile=$1 srcbase
+
+  if [[ ! -v initialized ]]; then
+    pki::init
+  fi
+
   if [[ $srcfile =~ ^$easyrsa_dir ]]; then
     srcbase=$easyrsa_dir
   elif [[ $srcfile == $SRC_CERTS_DIR/$(basename $srcfile) ]]; then
@@ -262,48 +282,41 @@ pki::detect_source_mixing() {
   fi
 }
 
+pki::find_src() {
+  local file=$1 srcfile result=''
+  # find $file first in $SRC_CERTS_DIR then in PKI
+  for srcfile in $SRC_CERTS_DIR/$file $(pki::pki_srcfile $file); do
+    if [[ -f $srcfile ]]; then
+      result=$srcfile
+      break
+    fi
+  done
+  echo $result
+}
+
 pki::copy_file() {
   local file=$1
-  
-  if [[ ! -v initialized ]]; then
-    pki::init
-  fi
 
   # create dst dirs
-  [[ -d $K8S_CERTS_DIR ]] || rm -f $K8S_CERTS_DIR \
-        && mkdir -p $K8S_CERTS_DIR
-  [[ -d $K8S_KEYS_DIR ]] || rm -f $K8S_KEYS_DIR \
-        && mkdir -p $K8S_KEYS_DIR
+  local d
+  for d in $K8S_CERTS_DIR $K8S_KEYS_DIR; do
+    kube::util::assure_dir $d
+  done
 
   if [[ ! -f $(pki::dstfile $file) ]]; then
-    local srcfile src_found
-    # try to copy file from $SRC_CERTS_DIR then from PKI
-    for srcfile in $SRC_CERTS_DIR/$file $(pki::pki_srcfile $file); do
-      if [[ -f $srcfile ]]; then
-        pki::detect_source_mixing $srcfile
-        cp -f $srcfile $(pki::dstfile $file)
-        chmod $(pki::dstfile_mode $file) $(pki::dstfile $file)
-        pki::verify_file $(pki::dstfile $file)
-        src_found=1
-        break
-      fi
-    done
-    [[ -v src_found ]] || return 1
+    local srcfile=$(pki::find_src $file)
+    if [[ -z $srcfile ]]; then
+      return 1
+    else
+      pki::detect_source_mixing $srcfile
+      cp -f $srcfile $(pki::dstfile $file)
+      chmod $(pki::dstfile_mode $file) $(pki::dstfile $file)
+      pki::verify_file $(pki::dstfile $file)
+    fi
   fi
 
   if [[ $file == kubernetes-master.crt ]]; then
     pki::place_tls_cert_bundle
-  fi
-}
-
-pki::get_cert_bundle_from_master() {
-  local bundle=$1
-  if [[ ! -v got_bundle || ! -f $bundle ]]; then
-    # get tls cert bundle from the https cerver
-    if ! openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null >$bundle; then
-      kube::log::fatal "Openssl can't connect to master $MASTER_IP:443"
-    fi
-    got_bundle=1
   fi
 }
 
@@ -334,5 +347,14 @@ pki::place_master_file() {
       kube::log::fatal "There is no src file $file, please fix it"
     fi
   fi
+}
+
+pki::gen_worker_certs() {
+  local ip=$1 dstdir=$2 f
+  pki::create_worker_certs $ip
+  kube::util::assure_dir $dstdir
+  for f in ca.crt {proxy,kubelet}-$ip.{crt,key}; do
+    cp -pf $(pki::pki_srcfile $f) $dstdir
+  done
 }
 

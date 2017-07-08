@@ -1,4 +1,5 @@
 #!/bin/bash
+# vim: set sw=2 :
 
 # Copyright 2016 The Kubernetes Authors All rights reserved.
 #
@@ -19,7 +20,18 @@ source $(dirname $BASH_SOURCE)/common.sh
 
 kube::multinode::main
 
+if [[ -z ${1+x} ]]; then
+  echo "Usage: $0 <worker ip address> [directory where to place files]"
+  exit 1
+fi
 ip=$1
-kube::log::status "Creating worker node certs for $ip"
-pki::create_worker_certs $ip
 
+if [[ -z ${2+x} ]]; then
+  dstdir=$SRC_CERTS_DIR
+else
+  dstdir=$2
+fi
+
+kube::log::status "Creating worker node certs and keys for $ip"
+pki::gen_worker_certs $ip $dstdir
+kube::log::status "Please copy files from $dstdir to the worker node"
