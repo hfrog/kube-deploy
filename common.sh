@@ -269,7 +269,7 @@ kube::multinode::create_addons() {
 }
 
 kube::multinode::create_master_manifests() {
-  kube::log::status "Creating manifests"
+  kube::log::status "Creating master manifests"
   [[ -d $K8S_MANIFESTS_DIR ]] || rm -fr $K8S_MANIFESTS_DIR \
         && mkdir -p $K8S_MANIFESTS_DIR
   for f in manifests/*; do
@@ -278,7 +278,7 @@ kube::multinode::create_master_manifests() {
 }
 
 kube::multinode::create_worker_manifests() {
-  kube::log::status "Creating manifests"
+  kube::log::status "Creating worker manifests"
   [[ -d $K8S_MANIFESTS_DIR ]] || rm -fr $K8S_MANIFESTS_DIR \
         && mkdir -p $K8S_MANIFESTS_DIR
   for f in manifests/kube-proxy.yaml; do
@@ -308,7 +308,7 @@ kube::multinode::create_basic_auth() {
 }
 
 kube::multinode::copy_worker_pki_files() {
-  kube::log::status "Creating worker certs and keys"
+  kube::log::status "Creating worker certs and keys for $IP_ADDRESS"
   for f in ca.crt {proxy,kubelet}-$IP_ADDRESS.{crt,key}; do
     pki::place_worker_file $f
   done
