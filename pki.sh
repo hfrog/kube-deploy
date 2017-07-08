@@ -35,15 +35,14 @@ pki::create_easyrsa() {
   # distributed.
 
   if [[ $MASTER_IP != $IP_ADDRESS ]]; then
-    kube::log::fatal "Will not create PKI on worker node"
+    kube::log::fatal "Won't create PKI on worker node"
   fi
 
   if [[ ! -v initialized ]]; then
     pki::init
   fi
 
-  [[ -d $CA_DIR ]] || rm -f $CA_DIR && mkdir -p $CA_DIR \
-        && chmod 700 $CA_DIR
+  kube::util::assure_dir $CA_DIR && chmod 700 $CA_DIR
 
   # Use ~/kube/easy-rsa.tar.gz if it exists, so that it can be
   # pre-pushed in cases where an outgoing connection is not allowed.
@@ -59,7 +58,7 @@ pki::create_easyrsa() {
     (
       kube::log::status "PKI creating new PKI"
       cd $easyrsa_dir
-      ./easyrsa init-pki
+      ./easyrsa init-pki >/dev/null
     )
   fi
   easyrsa_created=1
@@ -67,7 +66,7 @@ pki::create_easyrsa() {
 
 pki::create_ca() {
   if [[ $MASTER_IP != $IP_ADDRESS ]]; then
-    kube::log::fatal "Will not create new CA on worker node"
+    kube::log::fatal "Won't create new CA on worker node"
   fi
 
   if [[ ! -v easyrsa_created ]]; then
@@ -78,7 +77,7 @@ pki::create_ca() {
     (
       kube::log::status "PKI creating new CA"
       cd $easyrsa_dir
-      ./easyrsa --batch "--req-cn=${MASTER_IP}@`date +%s`" build-ca nopass
+      ./easyrsa --batch "--req-cn=${MASTER_IP}@`date +%s`" build-ca nopass >/dev/null 2>&1
     )
   fi
   ca_created=1
@@ -98,7 +97,7 @@ pki::create_client_cert() {
       ./easyrsa --dn-mode=org \
                 --req-cn=$name --req-org=system:masters \
                 --req-c= --req-st= --req-city= --req-email= --req-ou= \
-                build-client-full $name nopass
+                build-client-full $name nopass >/dev/null 2>&1
     )
   fi
 }
@@ -116,7 +115,7 @@ pki::create_worker_certs() {
 
 pki::create_master_certs() {
   if [[ $MASTER_IP != $IP_ADDRESS ]]; then
-    kube::log::fatal "Can't create certs on worker node"
+    kube::log::fatal "Won't create certs on worker node"
   fi
 
   if [[ ! -v ca_created ]]; then
@@ -137,7 +136,7 @@ pki::create_master_certs() {
       fi
       (
         cd $easyrsa_dir
-        ./easyrsa --subject-alt-name=$sans build-server-full $name nopass
+        ./easyrsa --subject-alt-name=$sans build-server-full $name nopass >/dev/null 2>&1
       )
     fi
   done
@@ -149,108 +148,175 @@ pki::create_master_certs() {
   pki::create_worker_certs $MASTER_IP
 }
 
-pki::place_tls_cert_bundle() {
-  # make bundle for HTTPS
-  local tls_cert_bundle=$K8S_CERTS_DIR/kubernetes-master-bundle.pem
-  if [[ ! -f $tls_cert_bundle ]]; then
-    openssl x509 -outform PEM < $K8S_CERTS_DIR/kubernetes-master.crt > $tls_cert_bundle
-    cat $K8S_CERTS_DIR/ca.crt >> $tls_cert_bundle
-    chmod 444 $tls_cert_bundle
-  fi
-}
+pki::pki_srcfile() {
+  local file=$1 pki_srcfile
 
-pki::copy_file() {
-  local file=$1
-  
   if [[ ! -v initialized ]]; then
     pki::init
   fi
 
-  # create dst dirs
-  [[ -d $K8S_CERTS_DIR ]] || rm -f $K8S_CERTS_DIR \
-        && mkdir -p $K8S_CERTS_DIR
-  [[ -d $K8S_KEYS_DIR ]] || rm -f $K8S_KEYS_DIR \
-        && mkdir -p $K8S_KEYS_DIR
-
-  # set pki_src here, dst and modes
-  local pki_srcfile dstfile mode
   if [[ $file =~ \.crt$ ]]; then
     if [[ $file == ca.crt ]]; then
       pki_srcfile=$easyrsa_dir/pki/$file
     else
       pki_srcfile=$easyrsa_dir/pki/issued/$file
     fi
-    dstfile=$K8S_CERTS_DIR/$file
-    mode=444
   elif [[ $file =~ \.key$ ]]; then
     pki_srcfile=$easyrsa_dir/pki/private/$file
-    dstfile=$K8S_KEYS_DIR/$file
-    mode=400
   else
     kube::log::fatal "Don't know how to handle $file"
   fi
+  echo $pki_srcfile
+}
 
-  local srcfile
-  if [[ ! -f $dstfile ]]; then
-    # there is no dst cert/key file, try to copy it from SRC_CERTS_DIR
-    srcfile=$SRC_CERTS_DIR/$file
+pki::dstfile() {
+  local file=$1 dstfile
+  if [[ $file =~ \.crt$ || $file =~ \.pem$ ]]; then
+    dstfile=$K8S_CERTS_DIR/$file
+  elif [[ $file =~ \.key$ ]]; then
+    dstfile=$K8S_KEYS_DIR/$file
+  else
+    kube::log::fatal "Don't know how to handle $file"
+  fi
+  echo $dstfile
+}
+
+pki::dstfile_mode() {
+  local file=$1 mode
+  if [[ $file =~ \.key$ ]]; then
+    mode=400
+  else
+    mode=444
+  fi
+  echo $mode
+}
+
+pki::verify_crt() {
+  local ca=$1
+  local crt=$2
+  if ! openssl verify -CAfile $ca $crt >/dev/null; then
+    kube::log::fatal "Failed openssl verify $crt on $ca"
+  fi
+}
+
+pki::verify_key() {
+  local key=$1
+  if ! openssl rsa -check -noout -in $key >/dev/null; then
+    kube::log::fatal "Failed openssl rsa check $key"
+  fi
+}
+
+pki::verify_crt_key() {
+  local crt=$1
+  local key=$2
+  local crt_modulus=$(openssl x509 -noout -modulus -in $crt)
+  local key_modulus=$(openssl rsa -noout -modulus -in $key)
+  if [[ $crt_modulus != $key_modulus ]]; then
+    kube::log::fatal "Don't pairing $crt $key"
+  fi
+}
+
+pki::verify_file() {
+  local dstfile=$1
+  if [[ $dstfile =~ \.crt$ ]]; then
+    # verify crt issuer
+    pki::verify_crt $(pki::dstfile ca.crt) $dstfile
+  elif [[ $dstfile =~ \.key$ ]]; then
+    # verify key consistency
+    pki::verify_key $dstfile
+
+    # verify that crt and key match together
+    pki::verify_crt_key $(pki::dstfile $(basename $dstfile | sed 's/key$/crt/')) $dstfile
+  fi
+}
+
+pki::place_tls_cert_bundle() {
+  # make bundle for apiserver
+  local tls_cert_bundle=$(pki::dstfile kubernetes-master-bundle.pem)
+  if [[ ! -f $tls_cert_bundle ]]; then
+    local crt
+    for crt in kubernetes-master.crt ca.crt; do
+      openssl x509 -outform PEM < $(pki::dstfile $crt) >> $tls_cert_bundle
+    done
+    chmod $(pki::dstfile_mode $tls_cert_bundle) $tls_cert_bundle
+  fi
+}
+
+pki::get_cert_bundle_from_master() {
+  local bundle=$1
+  if [[ ! -v got_bundle || ! -f $bundle ]]; then
+    # get tls cert bundle from the https cerver
+    if ! openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null >$bundle; then
+      kube::log::fatal "Openssl can't connect to master $MASTER_IP:443"
+    fi
+    got_bundle=1
+  fi
+}
+
+pki::srcbase() {
+  local srcfile=$1 srcbase
+
+  if [[ ! -v initialized ]]; then
+    pki::init
+  fi
+
+  if [[ $srcfile =~ ^$easyrsa_dir ]]; then
+    srcbase=$easyrsa_dir
+  elif [[ $srcfile == $SRC_CERTS_DIR/$(basename $srcfile) ]]; then
+    srcbase=$SRC_CERTS_DIR
+  else
+    kube::log::fatal "Can't detect source base of $srcfile"
+  fi
+  echo $srcbase
+}
+
+pki::detect_source_mixing() {
+  local srcfile=$1
+  if [[ ! -v source ]]; then
+    source=$(pki::srcbase $srcfile)
+    kube::log::status "PKI source: $source"
+  else
+    if [[ $source != $(pki::srcbase $srcfile) ]]; then
+      kube::log::status "Warning: PKI source mixing, was $source, now $(pki::srcbase $srcfile)"
+    fi
+  fi
+}
+
+pki::find_src() {
+  local file=$1 srcfile result=''
+  # find $file first in $SRC_CERTS_DIR then in PKI
+  for srcfile in $SRC_CERTS_DIR/$file $(pki::pki_srcfile $file); do
     if [[ -f $srcfile ]]; then
-      # check source mixing
-      if [[ ! -v source ]]; then
-        source=$SRC_CERTS_DIR
-        kube::log::status "PKI source: pre-created $source"
-      else
-        if [[ $source != $SRC_CERTS_DIR ]]; then
-          kube::log::fatal "PKI source mixing, was $source, now $SRC_CERTS_DIR"
-        fi
-      fi
+      result=$srcfile
+      break
+    fi
+  done
+  echo $result
+}
 
-      cp -f $srcfile $dstfile
-      chmod $mode $dstfile
+pki::copy_file() {
+  local file=$1
+
+  # create dst dirs
+  local d
+  for d in $K8S_CERTS_DIR $K8S_KEYS_DIR; do
+    kube::util::assure_dir $d
+  done
+
+  if [[ ! -f $(pki::dstfile $file) ]]; then
+    local srcfile=$(pki::find_src $file)
+    if [[ -z $srcfile ]]; then
+      return 1
     else
-      # try to copy file from PKI
-      if [[ -f $pki_srcfile ]]; then
-        # check source mixing
-        if [[ ! -v source ]]; then
-          source=$easyrsa_dir
-          kube::log::status "PKI source: easyrsa CA $source"
-        else
-          if [[ $source != $easyrsa_dir ]]; then
-            kube::log::fatal "PKI source mixing, was $source, now $easyrsa_dir"
-          fi
-        fi
-
-        cp -f $pki_srcfile $dstfile
-        chmod $mode $dstfile
-      else
-        return 1
-      fi
+      pki::detect_source_mixing $srcfile
+      cp -f $srcfile $(pki::dstfile $file)
+      chmod $(pki::dstfile_mode $file) $(pki::dstfile $file)
+      pki::verify_file $(pki::dstfile $file)
     fi
   fi
 
   if [[ $file == kubernetes-master.crt ]]; then
     pki::place_tls_cert_bundle
-  fi
-
-  # verify certs and keys
-  if [[ $file =~ \.crt$ ]]; then
-    # verify crt issuer
-    if ! openssl verify -CAfile $K8S_CERTS_DIR/ca.crt $dstfile >/dev/null; then
-      kube::log::fatal "openssl verify $dstfile failed"
-    fi
-  elif [[ $file =~ \.key$ ]]; then
-    # verify key consistency
-    if ! openssl rsa -check -noout -in $dstfile >/dev/null; then
-      kube::log::fatal "openssl rsa check $dstfile failed"
-    fi
-
-    # verify crt and key match togeter
-    local crt_file=$K8S_CERTS_DIR/${file/%key/crt}
-    local crt_modulus=$(openssl x509 -noout -modulus -in $crt_file)
-    local key_modulus=$(openssl rsa -noout -modulus -in $dstfile)
-    if [[ $crt_modulus != $key_modulus ]]; then
-      kube::log::fatal "keys $crt_file $dstfile don't match"
-    fi
   fi
 }
 
@@ -266,19 +332,9 @@ pki::place_worker_file() {
 
   # verify worker PKI files with CA from https server cert bundle
   if [[ $file =~ \.crt$ && $MASTER_IP != $IP_ADDRESS ]]; then
-    local tls_cert_bundle=$K8S_CERTS_DIR/tls_cert_bundle_from_network.pem
-    if [[ ! -v got_tls_bundle || ! -f $tls_cert_bundle ]]; then
-      # get tls cert bundle from the https cerver
-      if ! openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null > $tls_cert_bundle; then
-        kube::log::fatal "openssl can't connect to master $MASTER_IP:443"
-      fi
-      got_tls_bundle=1
-    fi
-
-    local dstfile=$K8S_CERTS_DIR/$file
-    if ! openssl verify -CAfile $tls_cert_bundle $dstfile >/dev/null; then
-      kube::log::fatal "openssl verify $dstfile with TLS CA cert failed"
-    fi
+    local tls_cert_bundle_from_master=$(pki::dstfile tls_cert_bundle_from_master.pem)
+    pki::get_cert_bundle_from_master $tls_cert_bundle_from_master
+    pki::verify_crt $tls_cert_bundle_from_master $(pki::dstfile $file)
   fi
 }
 
@@ -291,5 +347,14 @@ pki::place_master_file() {
       kube::log::fatal "There is no src file $file, please fix it"
     fi
   fi
+}
+
+pki::gen_worker_certs() {
+  local ip=$1 dstdir=$2 f
+  pki::create_worker_certs $ip
+  kube::util::assure_dir $dstdir
+  for f in ca.crt {proxy,kubelet}-$ip.{crt,key}; do
+    cp -pf $(pki::pki_srcfile $f) $dstdir
+  done
 }
 
