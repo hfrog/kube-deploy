@@ -9,18 +9,16 @@ metadata:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: heapster-v1.4.0
+  name: heapster
   namespace: kube-system
   labels:
     k8s-app: heapster
-    version: v1.4.0
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   replicas: 1
   selector:
     matchLabels:
       k8s-app: heapster
-      version: v1.4.0
   template:
     metadata:
       labels:
@@ -74,7 +72,7 @@ spec:
             - --memory=140Mi
             - --extra-memory=4Mi
             - --threshold=5
-            - --deployment=heapster-v1.4.0
+            - --deployment=heapster
             - --container=heapster
             - --poll-period=300000
             - --estimator=exponential
@@ -103,7 +101,7 @@ spec:
             - --memory=190Mi
             - --extra-memory=500Ki
             - --threshold=5
-            - --deployment=heapster-v1.4.0
+            - --deployment=heapster
             - --container=eventer
             - --poll-period=300000
             - --estimator=exponential
