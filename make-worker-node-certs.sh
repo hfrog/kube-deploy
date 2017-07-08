@@ -34,4 +34,4 @@ fi
 
 kube::log::status "Creating worker node certs and keys for $ip"
 pki::gen_worker_certs $ip $dstdir
-kube::log::status "Please copy files from $dstdir to the worker node"
+kube::log::status "Please copy files from $dstdir to the $ip:$SRC_CERTS_DIR"
