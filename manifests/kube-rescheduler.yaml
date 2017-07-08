@@ -1,0 +1,36 @@
+# vim: set sw=2 :
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-rescheduler
+  namespace: kube-system
+  annotations:
+    scheduler.alpha.kubernetes.io/critical-pod: ''
+  labels:
+    k8s-app: rescheduler
+    version: v0.3.0
+    tier: control-plane
+    component: kube-rescheduler
+    kubernetes.io/name: Rescheduler
+spec:
+  hostNetwork: true
+  containers:
+  - name: kube-rescheduler
+    image: gcr.io/google-containers/rescheduler:v0.3.0
+    command:
+    - /bin/sh
+    - -c
+    - /rescheduler
+      --running-in-cluster=false >/var/log/kubernetes/kube-rescheduler.log 2>&1
+    resources:
+      requests:
+        cpu: 10m
+        memory: 100Mi
+    volumeMounts:
+    - name: varlog
+      mountPath: /var/log/kubernetes
+      readOnly: false
+  volumes:
+  - name: varlog
+    hostPath:
+      path: /var/log/kubernetes
