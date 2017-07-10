@@ -1,0 +1,19 @@
+# vim: set sw=2 :
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: toolbox
+  labels:
+    role: toolbox
+spec:
+  template:
+    spec:
+      containers:
+        - name: toolbox
+          image: "hfrog/toolbox"
+          command:
+          - sleep
+          - "604800"
+    metadata:
+      labels:
+        name: toolbox

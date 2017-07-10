@@ -1,0 +1,32 @@
+# vim: set sw=2 :
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: http-responder
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: http-responder
+          image: "hfrog/http-responder"
+          ports:
+            - containerPort: 80
+    metadata:
+      labels:
+        name: http-responder
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: http-responder
+  labels:
+    name: http-responder
+spec:
+  type: NodePort
+  ports:
+    - port: 8765
+      nodePort: 32700
+      targetPort: 80
+  selector:
+    name: http-responder
