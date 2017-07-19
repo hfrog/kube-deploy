@@ -123,16 +123,13 @@ pki::create_master_certs() {
   fi
 
   local name sans
-  for name in kubernetes-master dex; do
+  for name in kubernetes-master dex dex-web-app; do
     if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
       kube::log::status "PKI creating server cert for $name"
 
+      sans=IP:$MASTER_IP
       if [[ $name == kubernetes-master ]]; then
-        sans="IP:$MASTER_IP,IP:$SERVICE_NETWORK.1,DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN"
-      elif [[ $name == dex ]]; then
-        sans=IP:$MASTER_IP
-      else
-        kube::log::fatal "Unknown master cert $name"
+        sans="$sans,IP:$SERVICE_NETWORK.1,DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN"
       fi
       (
         cd $easyrsa_dir

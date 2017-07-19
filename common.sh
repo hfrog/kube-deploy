@@ -335,7 +335,7 @@ kube::multinode::copy_worker_pki_files() {
 
 kube::multinode::copy_master_pki_files() {
   kube::log::status "Creating master certs and keys"
-  for f in {kubernetes-master,dex,kubecfg,addon-manager}.{crt,key}; do
+  for f in {kubernetes-master,dex,dex-web-app,kubecfg,addon-manager}.{crt,key}; do
     pki::place_master_file $f
   done
 }
