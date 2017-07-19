@@ -67,7 +67,7 @@ kube::multinode::main() {
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
   CLUSTER_DOMAIN=cluster.local
   RBAC=${RBAC:-true}
-  DEX_IP=${DEX_IP:-$MASTER_IP}
+  OPENID=${OPENID:-false}
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
@@ -109,6 +109,17 @@ kube::multinode::main() {
     K8S_AUTHZ_MODE=RBAC
   else
     K8S_AUTHZ_MODE=AlwaysAllow
+  fi
+
+  if [[ $OPENID == true ]]; then
+    K8S_OIDC="\
+      --oidc-issuer-url=https://$MASTER_IP:32000 \
+      --oidc-client-id=kubernetes \
+      --oidc-ca-file=$K8S_CERTS_DIR/ca.crt \
+      --oidc-username-claim=email \
+      --oidc-groups-claim=groups"
+  else
+    K8S_OIDC=""
   fi
 
   KUBELET_MOUNTS="\
@@ -260,7 +271,8 @@ kube::util::expand_vars() {
         -e "s|K8S_CERTS_DIR|$K8S_CERTS_DIR|g" \
         -e "s|K8S_KEYS_DIR|$K8S_KEYS_DIR|g" \
         -e "s|SERVICE_NETWORK|$SERVICE_NETWORK|g" \
-        -e "s|IP_POOL|$IP_POOL|g" -e "s/DEX_IP/$DEX_IP/g" \
+        -e "s|IP_POOL|$IP_POOL|g" \
+        -e "s|K8S_OIDC|$K8S_OIDC|g" \
         $1
 }
 
@@ -268,6 +280,13 @@ kube::multinode::create_addons() {
   kube::log::status "Creating addons"
   kube::util::assure_dir $K8S_ADDONS_DIR
   for f in addons/*; do
+    if [[ $(basename $f) == dex.yaml ]]; then
+      if [[ $OPENID == true ]]; then
+        kube::log::status "OPENID is on, don't forget to run dex-config.sh"
+      else
+        continue
+      fi
+    fi
     kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
   done
 }

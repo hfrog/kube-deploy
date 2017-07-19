@@ -1,0 +1,282 @@
+# vim: set sw=2 :
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: dex
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+  - apiGroups: ["oidc.coreos.com"] # API group created by dex
+    resources: ["*"]
+    verbs: ["*"]
+    nonResourceURLs: []
+  - apiGroups: ["extensions"]
+    resources: ["thirdpartyresources"]
+    verbs: ["create"] # To manage its own resources identity must be able to create thirdpartyresources.
+    nonResourceURLs: []
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: dex
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+subjects:
+- kind: ServiceAccount
+  name: dex
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dex
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dex
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dex-config
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+data:
+  config.yaml: |
+    issuer: https://MASTER_IP:32000
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
+    web:
+      https: 0.0.0.0:5556
+      tlsCert: /etc/dex/tls/tls.crt
+      tlsKey: /etc/dex/tls/tls.key
+    expiry:
+      signingKeys: "6h"
+      idTokens: "24h"
+    connectors:
+    - type: ldap
+      id: ldap
+      name: LDAP
+      config:
+        host: "__DEX__LDAP_HOST__"
+        rootCA: /etc/dex/ldap/ldap-ca.crt
+        bindDN: "__DEX__LDAP_BIND_DN__"
+        bindPW: "__DEX__LDAP_BIND_PW__"
+        userSearch:
+          baseDN: "__DEX__LDAP_USERSEARCH_BASE_DN__"
+          filter: "(objectClass=person)"
+          username: mail
+          idAttr: distinguishedName
+          emailAttr: mail
+          nameAttr: name
+        groupSearch:
+          baseDN: "__DEX__LDAP_GROUPSERSEARCH_BASE_DN__"
+          filter: "(objectClass=group)"
+          userAttr: distinguishedName
+          groupAttr: member
+          nameAttr: name
+    oauth2:
+      skipApprovalScreen: true
+
+    staticClients:
+    - id: kubernetes
+      redirectURIs:
+      - 'https://MASTER_IP:32001/callback'
+      name: 'Dex web app'
+      secret: "__DEX__STATIC_KUBERNETES_SECRET__"
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: dex
+    addonmanager.kubernetes.io/mode: Reconcile
+  name: dex
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dex
+    spec:
+      serviceAccountName: dex
+      containers:
+      - name: dex
+        image: hfrog/dex:v2.4.1-1
+        command:
+        - /bin/sh
+        - -c
+        - /usr/local/bin/dex serve /etc/dex/cfg/config.yaml >/var/log/kubernetes/$HOSTNAME.log 2>&1
+        volumeMounts:
+        - name: cfg
+          mountPath: /etc/dex/cfg
+          readOnly: true
+        - name: varlog
+          mountPath: /var/log/kubernetes
+          readOnly: false
+        - name: dex-tls
+          mountPath: /etc/dex/tls
+        - name: ldap-ca-crt
+          mountPath: /etc/dex/ldap
+      initContainers:
+      - name: install-config
+        image: hfrog/dex-install-config:v1.0
+        command:
+        - /bin/sh
+        - -c
+        - /install-config.sh >/var/log/kubernetes/dex-install-config.log 2>&1
+        env:
+        - name: DEX__LDAP_HOST
+          valueFrom:
+            secretKeyRef:
+              name: dex-ldap
+              key: host
+        - name: DEX__LDAP_BIND_DN
+          valueFrom:
+            secretKeyRef:
+              name: dex-ldap
+              key: bindDN
+        - name: DEX__LDAP_BIND_PW
+          valueFrom:
+            secretKeyRef:
+              name: dex-ldap
+              key: bindPW
+        - name: DEX__LDAP_USERSEARCH_BASE_DN
+          valueFrom:
+            secretKeyRef:
+              name: dex-ldap
+              key: user_baseDN
+        - name: DEX__LDAP_GROUPSERSEARCH_BASE_DN
+          valueFrom:
+            secretKeyRef:
+              name: dex-ldap
+              key: group_baseDN
+        - name: DEX__STATIC_KUBERNETES_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: dex-static
+              key: kubernetes_secret
+        - name: DEX_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: dex-config
+              key: config.yaml
+        volumeMounts:
+        - name: cfg
+          mountPath: /etc/dex/cfg
+          readOnly: false
+        - name: varlog
+          mountPath: /var/log/kubernetes
+          readOnly: false
+      volumes:
+      - name: cfg
+        emptyDir: {}
+      - name: varlog
+        hostPath:
+          path: /var/log/kubernetes
+      - name: dex-tls
+        secret:
+          secretName: dex-tls
+      - name: ldap-ca-crt
+        configMap:
+          name: ldap-ca-crt
+          items:
+          - key: ldap-ca.crt
+            path: ldap-ca.crt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  type: NodePort
+  ports:
+  - name: dex
+    port: 5556
+    protocol: TCP
+    targetPort: 5556
+    nodePort: 32000
+  selector:
+    app: dex
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: dex-web-app
+    addonmanager.kubernetes.io/mode: Reconcile
+  name: dex-web-app
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dex-web-app
+    spec:
+      containers:
+      - name: dex-web-app
+        image: hfrog/dex-example-app:v2.4.1-1
+        command:
+        - /bin/sh
+        - -c
+        - /usr/local/bin/example-app
+          --debug
+          --client-id kubernetes
+          --client-secret "$DEX__STATIC_KUBERNETES_SECRET"
+          --issuer https://MASTER_IP:32000
+          --issuer-root-ca K8S_CERTS_DIR/ca.crt
+          --listen https://0.0.0.0:5555
+          --tls-cert /etc/dex/web-app-tls/tls.crt
+          --tls-key /etc/dex/web-app-tls/tls.key
+          --redirect-uri https://MASTER_IP:32001/callback
+          >/var/log/kubernetes/$HOSTNAME.log 2>&1
+        env:
+        - name: DEX__STATIC_KUBERNETES_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: dex-static
+              key: kubernetes_secret
+        volumeMounts:
+        - name: data
+          mountPath: K8S_KUBESRV_DIR
+          readOnly: true
+        - name: varlog
+          mountPath: /var/log/kubernetes
+          readOnly: false
+        - name: dex-web-app-tls
+          mountPath: /etc/dex/web-app-tls
+      volumes:
+      - name: data
+        hostPath:
+          path: K8S_KUBESRV_DIR
+      - name: varlog
+        hostPath:
+          path: /var/log/kubernetes
+      - name: dex-web-app-tls
+        secret:
+          secretName: dex-web-app-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex-web-app
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  type: NodePort
+  ports:
+  - name: dex-web-app
+    port: 5555
+    protocol: TCP
+    targetPort: 5555
+    nodePort: 32001
+  selector:
+    app: dex-web-app
