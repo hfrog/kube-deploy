@@ -23,7 +23,8 @@ kube::cni::docker_conf() {
 
 kube::cni::restart_docker() {
   systemctl daemon-reload
-  systemctl restart docker
+  systemctl stop docker
+  systemctl start docker
   kube::log::status "Restarted docker with service file modification(s)"
 }
 
@@ -50,7 +51,7 @@ kube::cni::ensure_docker_settings() {
     local conf=$(kube::cni::docker_conf)
 
     # Clear mtu and bip when previously started in docker-bootstrap mode
-    if [[ ! -z $(grep "mtu=" $conf) && ! -z $(grep "bip=" $conf) ]]; then
+    if [[ -n $(grep "mtu=" $conf) && -n $(grep "bip=" $conf) ]]; then
       sed -i 's/--mtu=.* --bip=.*//g' $conf
       restart=true
       kube::log::status "The mtu and bip parameters removed"
@@ -58,12 +59,19 @@ kube::cni::ensure_docker_settings() {
 
     local drop_in_dir=/etc/systemd/system/docker.service.d
 
-    local execstart=$(grep '^ExecStart=[^[:space:]]' $conf \
-        | sed 's/\(dockerd[[:space:]]\).*$/\1/')
-    kube::cni::place_drop_in $drop_in_dir/execstart.conf <<EOF
+    local execstart=$(grep '^ExecStart=[^[:space:]]' $conf)
+    if [[ -z $(echo $execstart | grep -Fw \$DOCKER_OPTS) ]]; then
+      # there is no $DOCKER_OPTS in ExecStart, add it
+      kube::cni::place_drop_in $drop_in_dir/execstart.conf <<EOF
 [Service]
 ExecStart=
-$execstart --host=fd:// -H unix:///var/run/docker.sock -H tcp://127.0.0.1:4243 --ip-forward=true --iptables=true --raw-logs --ip-masq=true --selinux-enabled
+$execstart \$DOCKER_OPTS
+EOF
+    fi
+
+    kube::cni::place_drop_in $drop_in_dir/opts.conf <<EOF
+[Service]
+Environment=DOCKER_OPTS='-H unix:///var/run/docker.sock --ip-forward=true --iptables=true --ip-masq=true'
 EOF
 
     # https://docs.docker.com/engine/userguide/networking/default_network/container-communication/#container-communication-between-hosts
