@@ -32,7 +32,6 @@ spec:
       --service-account-lookup=true
       --service-account-key-file=K8S_KEYS_DIR/kubernetes-master.key
       --authorization-mode=K8S_AUTHZ_MODE
-      K8S_OIDC
       --allow-privileged=true
       --anonymous-auth=false
       --profiling=false
@@ -40,7 +39,7 @@ spec:
       --audit-log-maxage=0
       --audit-log-maxbackup=0
       --audit-log-maxsize=1000000000
-      --v=2 >/var/log/kubernetes/kube-apiserver.log 2>&1
+      --v=2 K8S_OIDC >/var/log/kubernetes/kube-apiserver.log 2>&1
     resources:
       requests:
         cpu: 250m
