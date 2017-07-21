@@ -126,7 +126,7 @@ spec:
           mountPath: /etc/dex/ldap
       initContainers:
       - name: install-config
-        image: hfrog/dex-install-config:v1.0
+        image: hfrog/dex-install-config:v1.1
         command:
         - /bin/sh
         - -c
