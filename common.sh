@@ -233,6 +233,7 @@ kube::multinode::start_k8s_master() {
 
 # Start kubelet in a container, for a worker node
 kube::multinode::start_k8s_worker() {
+  kube::multinode::cleanup_worker
   kube::multinode::copy_worker_pki_files
   kube::multinode::create_worker_manifests
 
@@ -274,6 +275,16 @@ kube::util::expand_vars() {
         -e "s|IP_POOL|$IP_POOL|g" \
         -e "s|K8S_OIDC|$K8S_OIDC|g" \
         $1
+}
+
+kube::multinode::cleanup_worker() {
+  kube::log::status "Clean-up $K8S_KUBESRV_DIR for worker"
+  rm -rf $K8S_CERTS_DIR
+  rm -rf $K8S_KEYS_DIR
+  rm -rf $CA_DIR
+  rm -rf $K8S_ADDONS_DIR
+  rm -rf $K8S_AUTH_DIR
+  rm -rf $K8S_MANIFESTS_DIR
 }
 
 kube::multinode::create_addons() {
