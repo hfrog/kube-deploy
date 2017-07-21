@@ -90,7 +90,7 @@ kube::multinode::main() {
   K8S_KUBELET_DIR=/var/lib/kubelet
   K8S_KUBECONFIG_DIR=$K8S_KUBELET_DIR/kubeconfig
 
-  CA_DIR=$K8S_KUBESRV_DIR/ca
+  K8S_CA_DIR=$K8S_KUBESRV_DIR/ca
   SRC_CERTS_DIR=${SRC_CERTS_DIR:-"/root/k8s-certs"}
 
   ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
@@ -281,7 +281,7 @@ kube::multinode::cleanup_worker() {
   kube::log::status "Clean-up $K8S_KUBESRV_DIR for worker"
   rm -rf $K8S_CERTS_DIR
   rm -rf $K8S_KEYS_DIR
-  rm -rf $CA_DIR
+  rm -rf $K8S_CA_DIR
   rm -rf $K8S_ADDONS_DIR
   rm -rf $K8S_AUTH_DIR
   rm -rf $K8S_MANIFESTS_DIR

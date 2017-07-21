@@ -16,7 +16,7 @@
 # limitations under the License.
 
 pki::init() {
-  easyrsa_dir=$CA_DIR/easy-rsa-master/easyrsa3
+  easyrsa_dir=$K8S_CA_DIR/easy-rsa-master/easyrsa3
   initialized=1
 }
 
@@ -42,7 +42,7 @@ pki::create_easyrsa() {
     pki::init
   fi
 
-  kube::util::assure_dir $CA_DIR && chmod 700 $CA_DIR
+  kube::util::assure_dir $K8S_CA_DIR && chmod 700 $K8S_CA_DIR
 
   # Use ~/kube/easy-rsa.tar.gz if it exists, so that it can be
   # pre-pushed in cases where an outgoing connection is not allowed.
@@ -51,7 +51,7 @@ pki::create_easyrsa() {
       cat ~/kube/easy-rsa.tar.gz
     else
       curl -# -L https://storage.googleapis.com/kubernetes-release/easy-rsa/easy-rsa.tar.gz
-    fi | tar xz -C $CA_DIR -f -
+    fi | tar xz -C $K8S_CA_DIR -f -
   fi
 
   if [[ ! -d $easyrsa_dir/pki ]]; then
