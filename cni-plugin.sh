@@ -21,10 +21,23 @@ kube::cni::docker_conf() {
   systemctl cat docker | awk 'FNR==1 {print $2}'
 }
 
+kube::cni::remove_option() {
+  sed -e "s/$1[^[:space:]]*[[:space:]]*//g"
+}
+
+kube::cni::add_option() {
+  local opt=$1
+  local var
+  read var
+  echo -n $var
+  if ! echo $var | grep -qFw $opt; then
+    echo " $opt"
+  fi
+}
+
 kube::cni::restart_docker() {
   systemctl daemon-reload
-  systemctl stop docker
-  systemctl start docker
+  systemctl restart docker
   kube::log::status "Restarted docker with service file modification(s)"
 }
 
@@ -50,22 +63,31 @@ kube::cni::ensure_docker_settings() {
     restart=false
     local conf=$(kube::cni::docker_conf)
 
-    # Clear mtu and bip when previously started in docker-bootstrap mode
-    if [[ -n $(grep "mtu=" $conf) && -n $(grep "bip=" $conf) ]]; then
-      sed -i 's/--mtu=.* --bip=.*//g' $conf
+    local unit_file=/etc/systemd/system/docker.service
+    local drop_in_dir=$unit_file.d
+
+    # get rid of containerd as a separate unit, because of the bug
+    # https://github.com/coreos/bugs/issues/1710
+    if grep -qw containerd.service $conf; then
+      kube::log::status "Docker unit file moved to $unit_file"
+      cat $conf | kube::cni::remove_option containerd.service > $unit_file
+      systemctl mask containerd
+      systemctl stop containerd
+      kube::log::status "Containerd unit is masked"
       restart=true
-      kube::log::status "The mtu and bip parameters removed"
     fi
 
-    local drop_in_dir=/etc/systemd/system/docker.service.d
-
     local execstart=$(grep '^ExecStart=[^[:space:]]' $conf)
-    if [[ -z $(echo $execstart | grep -Fw \$DOCKER_OPTS) ]]; then
-      # there is no $DOCKER_OPTS in ExecStart, add it
+    local new_execstart=$(echo $execstart | \
+        kube::cni::remove_option --containerd= | \
+        kube::cni::remove_option --mtu= | \
+        kube::cni::remove_option --bip= | \
+        kube::cni::add_option '$DOCKER_OPTS')
+    if [[ $execstart != $new_execstart ]]; then
       kube::cni::place_drop_in $drop_in_dir/execstart.conf <<EOF
 [Service]
 ExecStart=
-$execstart \$DOCKER_OPTS
+$new_execstart
 EOF
     fi
 
