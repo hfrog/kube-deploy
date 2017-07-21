@@ -76,7 +76,7 @@ data:
           emailAttr: mail
           nameAttr: name
         groupSearch:
-          baseDN: "__DEX__LDAP_GROUPSERSEARCH_BASE_DN__"
+          baseDN: "__DEX__LDAP_GROUPSEARCH_BASE_DN__"
           filter: "(objectClass=group)"
           userAttr: distinguishedName
           groupAttr: member
@@ -152,7 +152,7 @@ spec:
             secretKeyRef:
               name: dex-ldap
               key: user_baseDN
-        - name: DEX__LDAP_GROUPSERSEARCH_BASE_DN
+        - name: DEX__LDAP_GROUPSEARCH_BASE_DN
           valueFrom:
             secretKeyRef:
               name: dex-ldap

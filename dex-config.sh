@@ -5,7 +5,7 @@ DEX__LDAP_HOST="ldaps.company.com:636"
 DEX__LDAP_BIND_DN="CN=kubernetes,OU=users,DC=example,DC=com"
 DEX__LDAP_BIND_PW="secret"
 DEX__LDAP_USERSEARCH_BASE_DN="DC=example,DC=com"
-DEX__LDAP_GROUPSERSEARCH_BASE_DN="OU=groups,DC=example,DC=com"
+DEX__LDAP_GROUPSEARCH_BASE_DN="OU=groups,DC=example,DC=com"
 
 kubectl delete secret dex-ldap
 kubectl create secret generic dex-ldap \
@@ -13,7 +13,7 @@ kubectl create secret generic dex-ldap \
     --from-literal=bindDN="$DEX__LDAP_BIND_DN" \
     --from-literal=bindPW="$DEX__LDAP_BIND_PW" \
     --from-literal=user_baseDN="$DEX__LDAP_USERSEARCH_BASE_DN" \
-    --from-literal=group_baseDN="$DEX__LDAP_GROUPSERSEARCH_BASE_DN"
+    --from-literal=group_baseDN="$DEX__LDAP_GROUPSEARCH_BASE_DN"
 
 
 # creating secret for web-app and kubectl
