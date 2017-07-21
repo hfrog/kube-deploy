@@ -70,7 +70,7 @@ kube::multinode::main() {
   OPENID=${OPENID:-false}
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
-  ARCH=${ARCH:-${CURRENT_PLATFORM##*/}}
+  K8S_ARCH=${K8S_ARCH:-${CURRENT_PLATFORM##*/}}
 
   ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
   ETCD_NET_PARAM="--net host"
@@ -155,7 +155,7 @@ kube::multinode::log_variables() {
   kube::log::status "IP_ADDRESS is set to: $IP_ADDRESS"
   kube::log::status "ETCD_IP is set to: $ETCD_IP"
   kube::log::status "ETCD_VERSION is set to: $ETCD_VERSION"
-  kube::log::status "ARCH is set to: $ARCH"
+  kube::log::status "K8S_ARCH is set to: $K8S_ARCH"
   kube::log::status "--------------------------------------------"
   kube::log::status "SRC_CERTS_DIR is set to: $SRC_CERTS_DIR"
   kube::log::status "K8S_KUBESRV_DIR is set to: $K8S_KUBESRV_DIR"
@@ -174,7 +174,7 @@ kube::multinode::start_etcd() {
     --restart=$RESTART_POLICY \
     $ETCD_NET_PARAM \
     -v $K8S_KUBELET_DIR/etcd:/var/etcd \
-    gcr.io/google_containers/etcd-$ARCH:$ETCD_VERSION \
+    gcr.io/google_containers/etcd-$K8S_ARCH:$ETCD_VERSION \
     /usr/local/bin/etcd \
       --listen-client-urls=http://0.0.0.0:2379 \
       --advertise-client-urls=http://$ETCD_IP:2379 \
@@ -205,7 +205,7 @@ kube::multinode::start_k8s() {
     --restart=$RESTART_POLICY \
     --name kube_kubelet_$(kube::helpers::small_sha) \
     $KUBELET_MOUNTS \
-    $REGISTRY/hyperkube-$ARCH:$K8S_VERSION \
+    $REGISTRY/hyperkube-$K8S_ARCH:$K8S_VERSION \
     /bin/sh -c "/hyperkube kubelet \
       --pod-manifest-path=$K8S_MANIFESTS_DIR \
       --allow-privileged \
@@ -260,8 +260,8 @@ kube::util::assure_dir() {
 }
 
 kube::util::expand_vars() {
-    sed -e "s|REGISTRY|$REGISTRY|g" -e "s/ARCH/$ARCH/g" \
-        -e "s/VERSION/$K8S_VERSION/g" -e "s/ETCD_IP/$ETCD_IP/g" \
+    sed -e "s|REGISTRY|$REGISTRY|g" -e "s/K8S_ARCH/$K8S_ARCH/g" \
+        -e "s/K8S_VERSION/$K8S_VERSION/g" -e "s/ETCD_IP/$ETCD_IP/g" \
         -e "s/MASTER_IP/$MASTER_IP/g" -e "s/IP_ADDRESS/$IP_ADDRESS/g" \
         -e "s/CLUSTER_DOMAIN/$CLUSTER_DOMAIN/g" \
         -e "s/K8S_AUTHZ_MODE/$K8S_AUTHZ_MODE/g" \

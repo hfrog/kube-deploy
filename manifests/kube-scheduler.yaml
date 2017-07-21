@@ -13,7 +13,7 @@ spec:
   hostNetwork: true
   containers:
   - name: kube-scheduler
-    image: REGISTRY/hyperkube-ARCH:VERSION
+    image: REGISTRY/hyperkube-K8S_ARCH:K8S_VERSION
     command:
     - /bin/sh
     - -c
