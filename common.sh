@@ -120,6 +120,7 @@ kube::multinode::main() {
       --oidc-groups-claim=groups"
   else
     K8S_OIDC=""
+    kube::multinode::cleanup_openid
   fi
 
   KUBELET_MOUNTS="\
@@ -275,6 +276,10 @@ kube::util::expand_vars() {
         -e "s|IP_POOL|$IP_POOL|g" \
         -e "s|K8S_OIDC|$K8S_OIDC|g" \
         $1
+}
+
+kube::multinode::cleanup_openid() {
+  rm -f $K8S_ADDONS_DIR/dex.yaml
 }
 
 kube::multinode::cleanup_worker() {
