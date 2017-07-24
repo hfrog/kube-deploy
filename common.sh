@@ -61,7 +61,7 @@ kube::multinode::main() {
 
   # main tunables
   MASTER_IP=${MASTER_IP:-$IP_ADDRESS}
-  K8S_VERSION=${K8S_VERSION:-"v1.7.1"}
+  K8S_VERSION=${K8S_VERSION:-"v1.7.2"}
   REGISTRY=${REGISTRY:-"gcr.io/google_containers"}
   IP_POOL=${IP_POOL:-"10.168.0.0/16"}
   SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
