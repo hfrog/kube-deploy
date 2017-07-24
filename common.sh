@@ -326,8 +326,17 @@ kube::multinode::create_worker_manifests() {
 kube::multinode::create_kubeconfig() {
   kube::log::status "Creating kubeconfigs"
   kube::util::assure_dir $K8S_KUBECONFIG_DIR
-  for f in kubeconfig/*; do
-    kube::util::expand_vars $f > $K8S_KUBECONFIG_DIR/$(basename $f)
+
+  # make master kubeconfigs
+  for name in addon-manager controller-manager scheduler; do
+    kube::util::expand_vars kubeconfig/kubeconfig-master-tmpl.yaml | \
+        sed -e "s|K8S_KUBECONFIG_NAME|$name|g" > $K8S_KUBECONFIG_DIR/kubeconfig-$name.yaml
+  done
+
+  # make worker kubeconfigs
+  for name in kubelet kube-proxy; do
+    kube::util::expand_vars kubeconfig/kubeconfig-worker-tmpl.yaml | \
+        sed -e "s|K8S_KUBECONFIG_NAME|$name|g" > $K8S_KUBECONFIG_DIR/kubeconfig-$name.yaml
   done
 }
 
