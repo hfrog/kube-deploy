@@ -93,7 +93,7 @@ pki::create_client_cert() {
   if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
     (
       cd $easyrsa_dir
-      # Make a superuser client cert with subject "O=system:masters, CN=kubecfg"
+      # Make a superuser client cert with subject like "O=system:masters, CN=$user"
       ./easyrsa --dn-mode=org \
                 --req-cn=$name --req-org=system:masters \
                 --req-c= --req-st= --req-city= --req-email= --req-ou= \
@@ -138,8 +138,9 @@ pki::create_master_certs() {
     fi
   done
 
-  pki::create_client_cert kubecfg
   pki::create_client_cert addon-manager
+  pki::create_client_cert controller-manager
+  pki::create_client_cert scheduler
   master_certs_created=1
 
   pki::create_worker_certs $MASTER_IP

@@ -18,7 +18,7 @@ spec:
     - /bin/sh
     - -c
     - /hyperkube scheduler
-      --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig.yaml
+      --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-scheduler.yaml
       --leader-elect=true
       --profiling=false
       --v=2 >/var/log/kubernetes/kube-scheduler.log 2>&1

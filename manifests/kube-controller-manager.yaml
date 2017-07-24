@@ -18,7 +18,7 @@ spec:
     - /bin/sh
     - -c
     - /hyperkube controller-manager
-      --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig.yaml
+      --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-controller-manager.yaml
       --service-account-private-key-file=K8S_KEYS_DIR/kubernetes-master.key
       --use-service-account-credentials=true
       --root-ca-file=K8S_CERTS_DIR/ca.crt
