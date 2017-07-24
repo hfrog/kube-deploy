@@ -110,7 +110,7 @@ pki::create_worker_certs() {
   fi
 
   pki::create_client_cert kubelet-$ip
-  pki::create_client_cert proxy-$ip
+  pki::create_client_cert kube-proxy-$ip
 }
 
 pki::create_master_certs() {
@@ -351,7 +351,7 @@ pki::gen_worker_certs() {
   local ip=$1 dstdir=$2 f
   pki::create_worker_certs $ip
   kube::util::assure_dir $dstdir
-  for f in ca.crt {proxy,kubelet}-$ip.{crt,key}; do
+  for f in ca.crt {kube-proxy,kubelet}-$ip.{crt,key}; do
     cp -pf $(pki::pki_srcfile $f) $dstdir
   done
 }

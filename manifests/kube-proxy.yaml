@@ -34,7 +34,7 @@ spec:
     - -c
     - echo -998 > /proc/$$$/oom_score_adj &&
       /hyperkube proxy
-      --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-proxy.yaml
+      --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-kube-proxy.yaml
       --iptables-sync-period=1m
       --iptables-min-sync-period=10s
       --v=2 >/var/log/kubernetes/kube-proxy.log 2>&1

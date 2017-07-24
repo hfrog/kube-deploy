@@ -344,7 +344,7 @@ kube::multinode::create_basic_auth() {
 
 kube::multinode::copy_worker_pki_files() {
   kube::log::status "Creating worker certs and keys for $IP_ADDRESS"
-  for f in ca.crt {proxy,kubelet}-$IP_ADDRESS.{crt,key}; do
+  for f in ca.crt {kube-proxy,kubelet}-$IP_ADDRESS.{crt,key}; do
     pki::place_worker_file $f
   done
 }
