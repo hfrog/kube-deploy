@@ -212,6 +212,9 @@ kube::multinode::start_k8s() {
       --kubeconfig=$K8S_KUBECONFIG_DIR/kubeconfig-kubelet-$IP_ADDRESS.yaml \
       --cluster-dns=$SERVICE_NETWORK.10 \
       --cluster-domain=$CLUSTER_DOMAIN \
+      --read-only-port=0 \
+      --cadvisor-port=0 \
+      --event-qps=0 \
       $CNI_ARGS \
       $CONTAINERIZED_FLAG \
       --hostname-override=$IP_ADDRESS \
@@ -370,7 +373,7 @@ kube::multinode::copy_worker_pki_files() {
 kube::multinode::copy_master_pki_files() {
   kube::multinode::copy_worker_pki_files
   kube::log::status "Creating master certs and keys"
-  for f in {kubernetes-master,dex,dex-web-app,addon-manager,controller-manager,scheduler}.{crt,key}; do
+  for f in {kubernetes-master,addon-manager,apiserver,controller-manager,scheduler,dex,dex-web-app}.{crt,key}; do
     pki::place_master_file $f
   done
 }

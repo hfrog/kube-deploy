@@ -141,6 +141,7 @@ pki::create_master_certs() {
   pki::create_client_cert addon-manager
   pki::create_client_cert controller-manager
   pki::create_client_cert scheduler
+  pki::create_client_cert apiserver
   master_certs_created=1
 
   pki::create_worker_certs $MASTER_IP

@@ -22,7 +22,7 @@ spec:
       --insecure-port=0
       --secure-port=443
       --etcd-servers=http://ETCD_IP:2379
-      --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny
+      --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny,AlwaysPullImages
       --client-ca-file=K8S_CERTS_DIR/ca.crt
       --basic-auth-file=K8S_AUTH_DIR/basic_auth.csv
       --min-request-timeout=300
@@ -39,6 +39,7 @@ spec:
       --audit-log-maxage=0
       --audit-log-maxbackup=0
       --audit-log-maxsize=1000000000
+      --repair-malformed-updates=false
       --v=2 K8S_OIDC >/var/log/kubernetes/kube-apiserver.log 2>&1
     resources:
       requests:
