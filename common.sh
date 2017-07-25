@@ -215,6 +215,12 @@ kube::multinode::start_k8s() {
       --client-ca-file=$K8S_CERTS_DIR/ca.crt \
       --tls-cert-file=$K8S_CERTS_DIR/kubelet-server-$IP_ADDRESS.crt \
       --tls-private-key-file=$K8S_KEYS_DIR/kubelet-server-$IP_ADDRESS.key \
+      --anonymous-auth=false \
+      --authorization-mode=Webhook \
+      --protect-kernel-defaults=true \
+      --make-iptables-util-chains=true \
+      --keep-terminated-pod-volumes=false \
+      --streaming-connection-idle-timeout=1h \
       --read-only-port=0 \
       --cadvisor-port=0 \
       --event-qps=0 \
