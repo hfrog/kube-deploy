@@ -29,6 +29,9 @@ spec:
       --tls-cert-file=K8S_CERTS_DIR/kubernetes-master-bundle.pem
       --tls-private-key-file=K8S_KEYS_DIR/kubernetes-master.key
       --tls-ca-file=K8S_CERTS_DIR/ca.crt
+      --kubelet-certificate-authority=K8S_CERTS_DIR/ca.crt
+      --kubelet-client-certificate=K8S_CERTS_DIR/apiserver.crt
+      --kubelet-client-key=K8S_KEYS_DIR/apiserver.key
       --service-account-lookup=true
       --service-account-key-file=K8S_KEYS_DIR/kubernetes-master.key
       --authorization-mode=K8S_AUTHZ_MODE

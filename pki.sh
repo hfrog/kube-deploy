@@ -102,18 +102,14 @@ pki::create_client_cert() {
   fi
 }
 
-pki::create_worker_certs() {
-  local ip=$1
+pki::create_server_cert() {
+  local name=$1
 
-  if [[ ! -v master_certs_created ]]; then
-    pki::create_master_certs
+  local ip=$MASTER_IP
+  if [[ -n ${2+x} ]]; then
+    ip=$2
   fi
 
-  pki::create_client_cert kubelet-$ip
-  pki::create_client_cert kube-proxy-$ip
-}
-
-pki::create_master_certs() {
   if [[ $MASTER_IP != $IP_ADDRESS ]]; then
     kube::log::fatal "Won't create certs on worker node"
   fi
@@ -122,21 +118,34 @@ pki::create_master_certs() {
     pki::create_ca
   fi
 
-  local name sans
-  for name in kubernetes-master dex dex-web-app; do
-    if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
-      kube::log::status "PKI creating server cert for $name"
-
-      sans=IP:$MASTER_IP
-      if [[ $name == kubernetes-master ]]; then
-        sans="$sans,IP:$SERVICE_NETWORK.1,DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN"
-      fi
-      (
-        cd $easyrsa_dir
-        ./easyrsa --subject-alt-name=$sans build-server-full $name nopass >/dev/null 2>&1
-      )
+  if [[ ! -f $easyrsa_dir/pki/issued/$name.crt ]]; then
+    local sans=IP:$ip
+    if [[ $name == kubernetes-master ]]; then
+      sans="$sans,IP:$SERVICE_NETWORK.1,DNS:kubernetes,DNS:kubernetes.default,DNS:kubernetes.default.svc,DNS:kubernetes.default.svc.$CLUSTER_DOMAIN"
     fi
-  done
+    (
+      cd $easyrsa_dir
+      ./easyrsa --subject-alt-name=$sans build-server-full $name nopass >/dev/null 2>&1
+    )
+  fi
+}
+
+pki::create_worker_certs() {
+  local ip=$1
+
+  if [[ ! -v master_certs_created ]]; then
+    pki::create_master_certs
+  fi
+
+  pki::create_client_cert kubelet-$ip
+  pki::create_server_cert kubelet-server-$ip $ip
+  pki::create_client_cert kube-proxy-$ip
+}
+
+pki::create_master_certs() {
+  pki::create_server_cert kubernetes-master
+  pki::create_server_cert dex
+  pki::create_server_cert dex-web-app
 
   pki::create_client_cert addon-manager
   pki::create_client_cert controller-manager
@@ -322,6 +331,10 @@ pki::copy_file() {
 pki::place_worker_file() {
   local file=$1
   if ! pki::copy_file $file; then
+    if [[ $MASTER_IP != $IP_ADDRESS ]]; then
+      kube::log::fatal "Won't create certs on worker node. Missing $file"
+    fi
+
     # if copy was unsuccessful, then create file and try to copy it again
     pki::create_worker_certs $IP_ADDRESS
     if ! pki::copy_file $file; then
@@ -352,7 +365,7 @@ pki::gen_worker_certs() {
   local ip=$1 dstdir=$2 f
   pki::create_worker_certs $ip
   kube::util::assure_dir $dstdir
-  for f in ca.crt {kube-proxy,kubelet}-$ip.{crt,key}; do
+  for f in ca.crt {kubelet,kubelet-server,kube-proxy}-$ip.{crt,key}; do
     cp -pf $(pki::pki_srcfile $f) $dstdir
   done
 }

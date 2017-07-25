@@ -212,6 +212,9 @@ kube::multinode::start_k8s() {
       --kubeconfig=$K8S_KUBECONFIG_DIR/kubeconfig-kubelet-$IP_ADDRESS.yaml \
       --cluster-dns=$SERVICE_NETWORK.10 \
       --cluster-domain=$CLUSTER_DOMAIN \
+      --client-ca-file=$K8S_CERTS_DIR/ca.crt \
+      --tls-cert-file=$K8S_CERTS_DIR/kubelet-server-$IP_ADDRESS.crt \
+      --tls-private-key-file=$K8S_KEYS_DIR/kubelet-server-$IP_ADDRESS.key \
       --read-only-port=0 \
       --cadvisor-port=0 \
       --event-qps=0 \
@@ -365,7 +368,7 @@ kube::multinode::create_basic_auth() {
 
 kube::multinode::copy_worker_pki_files() {
   kube::log::status "Creating worker certs and keys for $IP_ADDRESS"
-  for f in ca.crt {kubelet,kube-proxy}-$IP_ADDRESS.{crt,key}; do
+  for f in ca.crt {kubelet,kubelet-server,kube-proxy}-$IP_ADDRESS.{crt,key}; do
     pki::place_worker_file $f
   done
 }
