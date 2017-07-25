@@ -195,8 +195,6 @@ kube::multinode::start_etcd() {
 
 # Common kubelet runner
 kube::multinode::start_k8s() {
-  kube::multinode::create_kubeconfig
-
   kube::multinode::make_shared_kubelet_dir
 
   docker run -d \
@@ -211,7 +209,7 @@ kube::multinode::start_k8s() {
       --pod-manifest-path=$K8S_MANIFESTS_DIR \
       --allow-privileged \
       --require-kubeconfig \
-      --kubeconfig=$K8S_KUBECONFIG_DIR/kubeconfig-kubelet.yaml \
+      --kubeconfig=$K8S_KUBECONFIG_DIR/kubeconfig-kubelet-$IP_ADDRESS.yaml \
       --cluster-dns=$SERVICE_NETWORK.10 \
       --cluster-domain=$CLUSTER_DOMAIN \
       $CNI_ARGS \
@@ -222,11 +220,11 @@ kube::multinode::start_k8s() {
 
 # Start kubelet first and then the master components as pods
 kube::multinode::start_k8s_master() {
-  kube::multinode::copy_worker_pki_files
   kube::multinode::copy_master_pki_files
   kube::multinode::create_basic_auth
   kube::multinode::create_master_manifests
   kube::multinode::create_addons
+  kube::multinode::create_master_kubeconfigs
 
   kube::log::status "Launching Kubernetes master components..."
   kube::multinode::start_k8s
@@ -237,6 +235,7 @@ kube::multinode::start_k8s_worker() {
   kube::multinode::cleanup_worker
   kube::multinode::copy_worker_pki_files
   kube::multinode::create_worker_manifests
+  kube::multinode::create_worker_kubeconfigs
 
   kube::log::status "Launching Kubernetes worker components..."
   kube::multinode::start_k8s
@@ -324,19 +323,29 @@ kube::multinode::create_worker_manifests() {
 }
 
 kube::multinode::create_kubeconfig() {
-  kube::log::status "Creating kubeconfigs"
+  local name=$1
+  kube::util::expand_vars kubeconfig/kubeconfig-tmpl.yaml | \
+      sed -e "s|K8S_KUBECONFIG_NAME|$name|g" > $K8S_KUBECONFIG_DIR/kubeconfig-$name.yaml
+}
+
+kube::multinode::create_master_kubeconfigs() {
+  kube::multinode::create_worker_kubeconfigs
+  kube::log::status "Creating master kubeconfigs"
   kube::util::assure_dir $K8S_KUBECONFIG_DIR
 
-  # make master kubeconfigs
+  local name
   for name in addon-manager controller-manager scheduler; do
-    kube::util::expand_vars kubeconfig/kubeconfig-master-tmpl.yaml | \
-        sed -e "s|K8S_KUBECONFIG_NAME|$name|g" > $K8S_KUBECONFIG_DIR/kubeconfig-$name.yaml
+    kube::multinode::create_kubeconfig $name
   done
+}
 
-  # make worker kubeconfigs
-  for name in kubelet kube-proxy; do
-    kube::util::expand_vars kubeconfig/kubeconfig-worker-tmpl.yaml | \
-        sed -e "s|K8S_KUBECONFIG_NAME|$name|g" > $K8S_KUBECONFIG_DIR/kubeconfig-$name.yaml
+kube::multinode::create_worker_kubeconfigs() {
+  kube::log::status "Creating worker kubeconfigs"
+  kube::util::assure_dir $K8S_KUBECONFIG_DIR
+
+  local name
+  for name in {kubelet,kube-proxy}-$IP_ADDRESS; do
+    kube::multinode::create_kubeconfig $name
   done
 }
 
@@ -353,12 +362,13 @@ kube::multinode::create_basic_auth() {
 
 kube::multinode::copy_worker_pki_files() {
   kube::log::status "Creating worker certs and keys for $IP_ADDRESS"
-  for f in ca.crt {kube-proxy,kubelet}-$IP_ADDRESS.{crt,key}; do
+  for f in ca.crt {kubelet,kube-proxy}-$IP_ADDRESS.{crt,key}; do
     pki::place_worker_file $f
   done
 }
 
 kube::multinode::copy_master_pki_files() {
+  kube::multinode::copy_worker_pki_files
   kube::log::status "Creating master certs and keys"
   for f in {kubernetes-master,dex,dex-web-app,addon-manager,controller-manager,scheduler}.{crt,key}; do
     pki::place_master_file $f
