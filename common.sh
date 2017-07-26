@@ -217,6 +217,7 @@ kube::multinode::start_k8s() {
       --tls-private-key-file=$K8S_KEYS_DIR/kubelet-server-$IP_ADDRESS.key \
       --anonymous-auth=false \
       --authorization-mode=Webhook \
+      --authentication-token-webhook \
       --protect-kernel-defaults=true \
       --make-iptables-util-chains=true \
       --keep-terminated-pod-volumes=false \
