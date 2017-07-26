@@ -53,9 +53,6 @@ kube::multinode::main() {
     kube::log::fatal "Docker is not running on this machine!"
   fi
 
-  # just as note
-  LATEST_STABLE_K8S_VERSION=$(curl -sSL "https://storage.googleapis.com/kubernetes-release/release/stable.txt")
-
   DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   IP_ADDRESS=${IP_ADDRESS:-$DEFAULT_IP_ADDRESS}
 
@@ -120,7 +117,6 @@ kube::multinode::main() {
       --oidc-groups-claim=groups"
   else
     K8S_OIDC=""
-    kube::multinode::cleanup_openid
   fi
 
   KUBELET_MOUNTS="\
@@ -233,6 +229,7 @@ kube::multinode::start_k8s() {
 
 # Start kubelet first and then the master components as pods
 kube::multinode::start_k8s_master() {
+  kube::multinode::cleanup_master
   kube::multinode::copy_master_pki_files
   kube::multinode::create_basic_auth
   kube::multinode::create_master_manifests
@@ -290,7 +287,8 @@ kube::util::expand_vars() {
         $1
 }
 
-kube::multinode::cleanup_openid() {
+kube::multinode::cleanup_master() {
+  # only remove dex for now
   rm -f $K8S_ADDONS_DIR/dex.yaml
 }
 
