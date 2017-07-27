@@ -214,7 +214,6 @@ kube::multinode::start_k8s() {
       --anonymous-auth=false \
       --authorization-mode=Webhook \
       --authentication-token-webhook \
-      --protect-kernel-defaults=true \
       --make-iptables-util-chains=true \
       --keep-terminated-pod-volumes=false \
       --streaming-connection-idle-timeout=1h \
