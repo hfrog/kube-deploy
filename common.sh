@@ -287,9 +287,13 @@ kube::util::expand_vars() {
         $1
 }
 
+kube::multinode::cleanup_logs() {
+  rm -fr /var/log/kubernetes/*
+}
+
 kube::multinode::cleanup_master() {
-  # only remove dex for now
   rm -f $K8S_ADDONS_DIR/dex.yaml
+  kube::multinode::cleanup_logs
 }
 
 kube::multinode::cleanup_worker() {
@@ -300,6 +304,7 @@ kube::multinode::cleanup_worker() {
   rm -rf $K8S_ADDONS_DIR
   rm -rf $K8S_AUTH_DIR
   rm -rf $K8S_MANIFESTS_DIR
+  kube::multinode::cleanup_logs
 }
 
 kube::multinode::create_addons() {
