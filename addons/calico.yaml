@@ -1,10 +1,10 @@
-# Calico Version v2.5.1
-# https://docs.projectcalico.org/v2.5/releases#v2.5.1
+# Calico Version v2.6.1
+# https://docs.projectcalico.org/v2.6/releases#v2.6.1
 # This manifest includes the following component versions:
-#   calico/node:v2.5.1
-#   calico/cni:v1.10.0
-#   calico/kube-policy-controller:v0.7.0
-# https://docs.projectcalico.org/v2.5/getting-started/kubernetes/installation/hosted/calico.yaml
+#   calico/node:v2.6.1
+#   calico/cni:v1.11.0
+#   calico/kube-controllers:v1.0.0
+# https://docs.projectcalico.org/v2.6/getting-started/kubernetes/installation/hosted/calico.yaml
 
 # This ConfigMap is used to configure a self-hosted Calico installation.
 kind: ConfigMap
@@ -107,7 +107,7 @@ spec:
         # container programs network policy and routes on each
         # host.
         - name: calico-node
-          image: quay.io/calico/node:v2.5.1
+          image: quay.io/calico/node:v2.6.1
           env:
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
@@ -196,7 +196,7 @@ spec:
         # This container installs the Calico CNI binaries
         # and CNI network config file on each node.
         - name: install-cni
-          image: quay.io/calico/cni:v1.10.0
+          image: quay.io/calico/cni:v1.11.0
           command: ["/install-cni.sh"]
           env:
             # The location of the Calico etcd cluster.
@@ -240,15 +240,15 @@ spec:
 
 ---
 
-# This manifest deploys the Calico policy controller on Kubernetes.
-# See https://github.com/projectcalico/k8s-policy
+# This manifest deploys the Calico Kubernetes controllers.
+# See https://github.com/projectcalico/kube-controllers
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: calico-policy-controller
+  name: calico-kube-controllers
   namespace: kube-system
   labels:
-    k8s-app: calico-policy
+    k8s-app: calico-kube-controllers
     addonmanager.kubernetes.io/mode: Reconcile
   annotations:
     scheduler.alpha.kubernetes.io/critical-pod: ''
@@ -256,24 +256,24 @@ metadata:
       [{"key": "dedicated", "value": "master", "effect": "NoSchedule" },
        {"key":"CriticalAddonsOnly", "operator":"Exists"}]
 spec:
-  # The policy controller can only have a single active instance.
+  # The controllers can only have a single active instance.
   replicas: 1
   strategy:
     type: Recreate
   template:
     metadata:
-      name: calico-policy-controller
+      name: calico-kube-controllers
       namespace: kube-system
       labels:
-        k8s-app: calico-policy
+        k8s-app: calico-kube-controllers
     spec:
-      # The policy controller must run in the host network namespace so that
+      # The controllers must run in the host network namespace so that
       # it isn't governed by policy that would prevent it from working.
       hostNetwork: true
-      serviceAccountName: calico-policy-controller
+      serviceAccountName: calico-kube-controllers
       containers:
-        - name: calico-policy-controller
-          image: quay.io/calico/kube-policy-controller:v0.7.0
+        - name: calico-kube-controllers
+          image: quay.io/calico/kube-controllers:v1.0.0
           env:
             # The location of the Calico etcd cluster.
             - name: ETCD_ENDPOINTS
@@ -299,15 +299,6 @@ spec:
                 configMapKeyRef:
                   name: calico-config
                   key: etcd_cert
-            # The location of the Kubernetes API.  Use the default Kubernetes
-            # service for API access.
-            - name: K8S_API
-              value: "https://kubernetes.default:443"
-            # Since we're running in the host namespace and might not have KubeDNS
-            # access, configure the container's /etc/hosts to resolve
-            # kubernetes.default to the correct service clusterIP.
-            - name: CONFIGURE_ETC_HOSTS
-              value: "true"
           volumeMounts:
             # Mount in the etcd TLS secrets.
             - mountPath: /calico-secrets
@@ -320,10 +311,47 @@ spec:
 
 ---
 
+# This deployment turns off the old "policy-controller". It should remain at 0 replicas, and then
+# be removed entirely once the new kube-controllers deployment has been deployed above.
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: calico-policy-controller
+  namespace: kube-system
+  labels:
+    k8s-app: calico-policy
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  # Turn this deployment off in favor of the kube-controllers deployment above.
+  replicas: 0
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: calico-policy-controller
+      namespace: kube-system
+      labels:
+        k8s-app: calico-policy
+    spec:
+      hostNetwork: true
+      serviceAccountName: calico-kube-controllers
+      containers:
+        - name: calico-policy-controller
+          image: quay.io/calico/kube-controllers:v1.0.0
+          env:
+            # The location of the Calico etcd cluster.
+            - name: ETCD_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: calico-config
+                  key: etcd_endpoints
+
+---
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: calico-policy-controller
+  name: calico-kube-controllers
   namespace: kube-system
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
@@ -337,4 +365,3 @@ metadata:
   namespace: kube-system
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
-
