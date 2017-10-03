@@ -290,13 +290,18 @@ kube::multinode::cleanup_logs() {
   rm -fr /var/log/kubernetes/*
 }
 
+kube::multinode::cleanup_addons() {
+  rm -f $K8S_ADDONS_DIR/*
+}
+
 kube::multinode::cleanup_master() {
-  rm -f $K8S_ADDONS_DIR/dex.yaml
+  kube::log::status "Cleaning up master files"
+  kube::multinode::cleanup_addons
   kube::multinode::cleanup_logs
 }
 
 kube::multinode::cleanup_worker() {
-  kube::log::status "Clean-up $K8S_KUBESRV_DIR for worker"
+  kube::log::status "Cleaning up $K8S_KUBESRV_DIR for worker"
   rm -rf $K8S_CERTS_DIR
   rm -rf $K8S_KEYS_DIR
   rm -rf $K8S_CA_DIR
