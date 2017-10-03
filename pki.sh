@@ -144,6 +144,7 @@ pki::create_worker_certs() {
 
 pki::create_master_certs() {
   pki::create_server_cert kubernetes-master
+  pki::create_server_cert dashboard
   pki::create_server_cert dex
   pki::create_server_cert dex-web-app
 
