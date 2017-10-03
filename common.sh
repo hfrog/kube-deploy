@@ -148,6 +148,7 @@ kube::multinode::log_variables() {
   kube::log::status "SERVICE_NETWORK is set to: $SERVICE_NETWORK"
   kube::log::status "CLUSTER_DOMAIN is set to: $CLUSTER_DOMAIN"
   kube::log::status "Authorization mode is set to: $K8S_AUTHZ_MODE"
+  kube::log::status "OPENID is set to: $OPENID"
   kube::log::status "--------------------------------------------"
   kube::log::status "IP_ADDRESS is set to: $IP_ADDRESS"
   kube::log::status "ETCD_IP is set to: $ETCD_IP"
