@@ -6,13 +6,13 @@ metadata:
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
 rules:
-  - apiGroups: ["oidc.coreos.com"] # API group created by dex
+  - apiGroups: ["dex.coreos.com"] # API group created by dex
     resources: ["*"]
     verbs: ["*"]
     nonResourceURLs: []
-  - apiGroups: ["extensions"]
-    resources: ["thirdpartyresources"]
-    verbs: ["create"] # To manage its own resources identity must be able to create thirdpartyresources.
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create"] # To manage its own resources identity must be able to create CRDs.
     nonResourceURLs: []
 ---
 kind: ClusterRoleBinding
@@ -108,7 +108,7 @@ spec:
       serviceAccountName: dex
       containers:
       - name: dex
-        image: hfrog/dex:v2.6.1
+        image: hfrog/dex:v2.7.1
         command:
         - /bin/sh
         - -c
