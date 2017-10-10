@@ -84,8 +84,8 @@ kube::multinode::main() {
   K8S_MANIFESTS_DIR=$K8S_KUBESRV_DIR/manifests
   K8S_CERTS_DIR=$K8S_KUBESRV_DIR/crt
   K8S_KEYS_DIR=$K8S_KUBESRV_DIR/key
+  K8S_KUBECONFIG_DIR=$K8S_KUBESRV_DIR/kubeconfig
   K8S_KUBELET_DIR=/var/lib/kubelet
-  K8S_KUBECONFIG_DIR=$K8S_KUBELET_DIR/kubeconfig
 
   K8S_CA_DIR=$K8S_KUBESRV_DIR/ca
   SRC_CERTS_DIR=${SRC_CERTS_DIR:-"/root/k8s-certs"}
@@ -158,7 +158,6 @@ kube::multinode::log_variables() {
   kube::log::status "SRC_CERTS_DIR is set to: $SRC_CERTS_DIR"
   kube::log::status "K8S_KUBESRV_DIR is set to: $K8S_KUBESRV_DIR"
   kube::log::status "K8S_KUBELET_DIR is set to: $K8S_KUBELET_DIR"
-  kube::log::status "K8S_KUBECONFIG_DIR is set to: $K8S_KUBECONFIG_DIR"
   kube::log::status "--------------------------------------------"
 }
 

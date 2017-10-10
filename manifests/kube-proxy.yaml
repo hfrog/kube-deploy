@@ -48,9 +48,6 @@ spec:
     - name: data
       mountPath: K8S_KUBESRV_DIR
       readOnly: true
-    - name: kubeconfig
-      mountPath: K8S_KUBECONFIG_DIR
-      readOnly: true
     - name: varlog
       mountPath: /var/log/kubernetes
       readOnly: false
@@ -61,9 +58,6 @@ spec:
   - name: data
     hostPath:
       path: K8S_KUBESRV_DIR
-  - name: kubeconfig
-    hostPath:
-      path: K8S_KUBECONFIG_DIR
   - name: varlog
     hostPath:
       path: /var/log/kubernetes
