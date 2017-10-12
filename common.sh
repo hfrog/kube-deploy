@@ -221,6 +221,7 @@ kube::multinode::start_k8s() {
       --cadvisor-port=0 \
       --event-qps=0 \
       $CNI_ARGS \
+      $KUBELET_LABELS \
       $CONTAINERIZED_FLAG \
       --hostname-override=$IP_ADDRESS \
       --v=2 >/var/log/kubernetes/kubelet.log 2>&1"
@@ -234,6 +235,7 @@ kube::multinode::start_k8s_master() {
   kube::multinode::create_master_manifests
   kube::multinode::create_addons
   kube::multinode::create_master_kubeconfigs
+  KUBELET_LABELS="--node-labels role=master"
 
   kube::log::status "Launching Kubernetes master components..."
   kube::multinode::start_k8s
@@ -245,6 +247,7 @@ kube::multinode::start_k8s_worker() {
   kube::multinode::copy_worker_pki_files
   kube::multinode::create_worker_manifests
   kube::multinode::create_worker_kubeconfigs
+  KUBELET_LABELS="--node-labels role=worker"
 
   kube::log::status "Launching Kubernetes worker components..."
   kube::multinode::start_k8s
