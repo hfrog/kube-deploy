@@ -100,6 +100,7 @@ metadata:
   name: dex
 spec:
   replicas: 1
+  revisionHistoryLimit: 1
   template:
     metadata:
       labels:
@@ -216,6 +217,7 @@ metadata:
   name: dex-web-app
 spec:
   replicas: 1
+  revisionHistoryLimit: 1
   template:
     metadata:
       labels:
