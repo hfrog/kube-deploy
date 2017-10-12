@@ -20,17 +20,113 @@
 # https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
 
 # ------------------- Dashboard Secret ------------------- #
+# will be created by init job
+# ------------------- Dashboard Secret ------------------- #
 
+kind: ConfigMap
 apiVersion: v1
-kind: Secret
 metadata:
+  name: dashboard-init
+  namespace: kube-system
   labels:
     k8s-app: kubernetes-dashboard
     addonmanager.kubernetes.io/mode: Reconcile
-  name: kubernetes-dashboard-certs
-  namespace: kube-system
-type: Opaque
+data:
+  script: |
+    #!/bin/bash
+    # vim: set sw=2 :
 
+    set -o errexit
+    set -o errtrace
+    set -o nounset
+    set -o pipefail
+    shopt -s expand_aliases
+
+    error_report() {
+      echo "errexit on line $(caller)" >&2
+    }
+
+    trap error_report ERR
+
+    DEBUG=${DEBUG:-false}
+    if [[ $DEBUG == true ]]; then
+      set -x
+    fi
+
+    token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    alias kubectl="./kubectl --token=$token"
+
+    crt=$(base64 < K8S_CERTS_DIR/dashboard.crt | tr -d \\n)
+    key=$(base64 < K8S_KEYS_DIR/dashboard.key | tr -d \\n)
+    echo "$certs" | sed -e "s/\$crt/$crt/" -e "s/\$key/$key/" > kubernetes-dashboard-certs.yaml
+
+    kubectl apply -f kubernetes-dashboard-certs.yaml
+    exit $?
+
+  certs: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: kubernetes-dashboard-certs
+      namespace: kube-system
+      labels:
+        k8s-app: kubernetes-dashboard
+    type: Opaque
+    data:
+      dashboard.crt: $crt
+      dashboard.key: $key
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubernetes-dashboard-init
+  namespace: kube-system
+  labels:
+    k8s-app: kubernetes-dashboard
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-app: kubernetes-dashboard
+    spec:
+      containers:
+      - name: kubernetes-dashboard-init
+        image: hfrog/common-init:v1.0
+        command:
+        - /bin/bash
+        - -c
+        - /bootstrap.sh >/var/log/kubernetes/dashboard-init.log 2>&1
+        env:
+        - name: script
+          valueFrom:
+            configMapKeyRef:
+              name: dashboard-init
+              key: script
+        - name: certs
+          valueFrom:
+            configMapKeyRef:
+              name: dashboard-init
+              key: certs
+        volumeMounts:
+        - name: data
+          mountPath: K8S_KUBESRV_DIR
+          readOnly: true
+        - name: varlog
+          mountPath: /var/log/kubernetes
+          readOnly: false
+      volumes:
+      - name: data
+        hostPath:
+          path: K8S_KUBESRV_DIR
+      - name: varlog
+        hostPath:
+          path: /var/log/kubernetes
+      serviceAccountName: kubernetes-dashboard
+      restartPolicy: Never
+      # important, because needed certs exist only on master node
+      nodeSelector:
+        role: master
 ---
 # ------------------- Dashboard Service Account ------------------- #
 
@@ -62,7 +158,7 @@ rules:
   resources: ["secrets"]
   # Allow Dashboard to get, update and delete 'kubernetes-dashboard-key-holder' secret.
   resourceNames: ["kubernetes-dashboard-key-holder", "kubernetes-dashboard-certs"]
-  verbs: ["get", "update", "delete"]
+  verbs: ["get", "update", "patch", "delete"]
   # Allow Dashboard to get metrics from heapster.
 - apiGroups: [""]
   resources: ["services"]
@@ -113,6 +209,14 @@ spec:
       containers:
       - name: kubernetes-dashboard
         image: gcr.io/google_containers/kubernetes-dashboard-amd64:v1.7.1
+        command:
+        - /dashboard
+        - --insecure-bind-address=0.0.0.0
+        - --bind-address=0.0.0.0
+        - --tls-key-file=/certs/dashboard.key
+        - --tls-cert-file=/certs/dashboard.crt
+        #- --logtostderr=false
+        #- --log_dir=/var/log/kubernetes/
         resources:
           # keep request = limit to keep this container in guaranteed class
           limits:
@@ -124,13 +228,6 @@ spec:
         ports:
         - containerPort: 8443
           protocol: TCP
-        args:
-          - --tls-key-file=/certs/dashboard.key
-          - --tls-cert-file=/certs/dashboard.crt
-          # Uncomment the following line to manually specify Kubernetes API server Host
-          # If not specified, Dashboard will attempt to auto discover the API server and connect
-          # to it. Uncomment only if the default does not work.
-          # - --apiserver-host=http://my-address:port
         volumeMounts:
         - name: kubernetes-dashboard-certs
           mountPath: /certs
