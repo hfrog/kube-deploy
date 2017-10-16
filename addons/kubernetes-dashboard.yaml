@@ -143,7 +143,7 @@ metadata:
 # ------------------- Dashboard Role & Role Binding ------------------- #
 
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: kubernetes-dashboard-minimal
   namespace: kube-system
@@ -166,7 +166,20 @@ rules:
   verbs: ["proxy"]
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: kubernetes-dashboard-minimal
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+rules:
+- nonResourceURLs: ["/swagger*"]
+  verbs: ["get"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: kubernetes-dashboard-minimal
@@ -176,6 +189,23 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
+  name: kubernetes-dashboard-minimal
+subjects:
+- kind: ServiceAccount
+  name: kubernetes-dashboard
+  namespace: kube-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubernetes-dashboard-minimal
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
   name: kubernetes-dashboard-minimal
 subjects:
 - kind: ServiceAccount
