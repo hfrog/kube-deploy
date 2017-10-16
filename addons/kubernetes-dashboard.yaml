@@ -96,7 +96,7 @@ spec:
         command:
         - /bin/bash
         - -c
-        - /bootstrap.sh >/var/log/kubernetes/dashboard-init.log 2>&1
+        - /bootstrap.sh >K8S_LOG_DIR/dashboard-init.log 2>&1
         env:
         - name: script
           valueFrom:
@@ -113,7 +113,7 @@ spec:
           mountPath: K8S_KUBESRV_DIR
           readOnly: true
         - name: varlog
-          mountPath: /var/log/kubernetes
+          mountPath: K8S_LOG_DIR
           readOnly: false
       volumes:
       - name: data
@@ -121,7 +121,7 @@ spec:
           path: K8S_KUBESRV_DIR
       - name: varlog
         hostPath:
-          path: /var/log/kubernetes
+          path: K8S_LOG_DIR
       serviceAccountName: kubernetes-dashboard
       restartPolicy: Never
       # important, because needed certs exist only on master node
@@ -246,7 +246,7 @@ spec:
         - --tls-key-file=/certs/dashboard.key
         - --tls-cert-file=/certs/dashboard.crt
         #- --logtostderr=false
-        #- --log_dir=/var/log/kubernetes/
+        #- --log_dir=K8S_LOG_DIR/
         resources:
           # keep request = limit to keep this container in guaranteed class
           limits:

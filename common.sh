@@ -86,6 +86,7 @@ kube::multinode::main() {
   K8S_KEYS_DIR=$K8S_KUBESRV_DIR/key
   K8S_KUBECONFIG_DIR=$K8S_KUBESRV_DIR/kubeconfig
   K8S_KUBELET_DIR=/var/lib/kubelet
+  K8S_LOG_DIR=/var/log/kubernetes
 
   K8S_CA_DIR=$K8S_KUBESRV_DIR/ca
   SRC_CERTS_DIR=${SRC_CERTS_DIR:-"/root/k8s-certs"}
@@ -126,7 +127,7 @@ kube::multinode::main() {
     -v /run:/run:rw \
     -v /var/lib/docker:/var/lib/docker:rw \
     $KUBELET_MOUNT \
-    -v /var/log/kubernetes:/var/log/kubernetes:rw \
+    -v $K8S_LOG_DIR:$K8S_LOG_DIR:rw \
     -v $K8S_KUBESRV_DIR:$K8S_KUBESRV_DIR:ro \
     -v /etc/cni/net.d:/etc/cni/net.d:rw \
     -v /opt/cni/bin:/opt/cni/bin:rw"
@@ -158,6 +159,7 @@ kube::multinode::log_variables() {
   kube::log::status "SRC_CERTS_DIR is set to: $SRC_CERTS_DIR"
   kube::log::status "K8S_KUBESRV_DIR is set to: $K8S_KUBESRV_DIR"
   kube::log::status "K8S_KUBELET_DIR is set to: $K8S_KUBELET_DIR"
+  kube::log::status "K8S_LOG_DIR is set to: $K8S_LOG_DIR"
   kube::log::status "--------------------------------------------"
 }
 
@@ -224,7 +226,7 @@ kube::multinode::start_k8s() {
       $KUBELET_LABELS \
       $CONTAINERIZED_FLAG \
       --hostname-override=$IP_ADDRESS \
-      --v=2 >/var/log/kubernetes/kubelet.log 2>&1"
+      --v=2 >$K8S_LOG_DIR/kubelet.log 2>&1"
 }
 
 # Start kubelet first and then the master components as pods
@@ -283,6 +285,7 @@ kube::util::expand_vars() {
         -e "s|K8S_ADDONS_DIR|$K8S_ADDONS_DIR|g" \
         -e "s|K8S_CERTS_DIR|$K8S_CERTS_DIR|g" \
         -e "s|K8S_KEYS_DIR|$K8S_KEYS_DIR|g" \
+        -e "s|K8S_LOG_DIR|$K8S_LOG_DIR|g" \
         -e "s|SERVICE_NETWORK|$SERVICE_NETWORK|g" \
         -e "s|IP_POOL|$IP_POOL|g" \
         -e "s|K8S_OIDC|$K8S_OIDC|g" \
@@ -290,7 +293,7 @@ kube::util::expand_vars() {
 }
 
 kube::multinode::cleanup_logs() {
-  rm -fr /var/log/kubernetes/*
+  rm -fr $K8S_LOG_DIR/*
 }
 
 kube::multinode::cleanup_addons() {

@@ -37,7 +37,7 @@ spec:
       --kubeconfig=K8S_KUBECONFIG_DIR/kubeconfig-kube-proxy-IP_ADDRESS.yaml
       --iptables-sync-period=1m
       --iptables-min-sync-period=10s
-      --v=2 >/var/log/kubernetes/kube-proxy.log 2>&1
+      --v=2 >K8S_LOG_DIR/kube-proxy.log 2>&1
     # --resource-container=""
     resources:
       requests:
@@ -49,7 +49,7 @@ spec:
       mountPath: K8S_KUBESRV_DIR
       readOnly: true
     - name: varlog
-      mountPath: /var/log/kubernetes
+      mountPath: K8S_LOG_DIR
       readOnly: false
     - mountPath: /run/xtables.lock
       name: iptableslock
@@ -60,7 +60,7 @@ spec:
       path: K8S_KUBESRV_DIR
   - name: varlog
     hostPath:
-      path: /var/log/kubernetes
+      path: K8S_LOG_DIR
   - hostPath:
       path: /run
     name: run

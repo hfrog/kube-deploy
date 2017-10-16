@@ -21,16 +21,16 @@ spec:
     - /bin/sh
     - -c
     - /rescheduler
-      --running-in-cluster=false >/var/log/kubernetes/kube-rescheduler.log 2>&1
+      --running-in-cluster=false >K8S_LOG_DIR/kube-rescheduler.log 2>&1
     resources:
       requests:
         cpu: 10m
         memory: 100Mi
     volumeMounts:
     - name: varlog
-      mountPath: /var/log/kubernetes
+      mountPath: K8S_LOG_DIR
       readOnly: false
   volumes:
   - name: varlog
     hostPath:
-      path: /var/log/kubernetes
+      path: K8S_LOG_DIR

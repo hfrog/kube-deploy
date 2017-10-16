@@ -26,7 +26,7 @@ spec:
       --leader-elect=true
       --cluster-cidr=10.1.0.0/16
       --profiling=false
-      --v=2 >/var/log/kubernetes/kube-controller-manager.log 2>&1
+      --v=2 >K8S_LOG_DIR/kube-controller-manager.log 2>&1
     resources:
       requests:
         cpu: 200m
@@ -42,7 +42,7 @@ spec:
       mountPath: K8S_KUBESRV_DIR
       readOnly: true
     - name: varlog
-      mountPath: /var/log/kubernetes
+      mountPath: K8S_LOG_DIR
       readOnly: false
   volumes:
   - name: data
@@ -50,4 +50,4 @@ spec:
       path: K8S_KUBESRV_DIR
   - name: varlog
     hostPath:
-      path: /var/log/kubernetes
+      path: K8S_LOG_DIR

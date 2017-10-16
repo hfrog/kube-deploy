@@ -113,13 +113,13 @@ spec:
         command:
         - /bin/sh
         - -c
-        - /usr/local/bin/dex serve /etc/dex/cfg/config.yaml >/var/log/kubernetes/$HOSTNAME.log 2>&1
+        - /usr/local/bin/dex serve /etc/dex/cfg/config.yaml >K8S_LOG_DIR/$HOSTNAME.log 2>&1
         volumeMounts:
         - name: cfg
           mountPath: /etc/dex/cfg
           readOnly: true
         - name: varlog
-          mountPath: /var/log/kubernetes
+          mountPath: K8S_LOG_DIR
           readOnly: false
         - name: dex-tls
           mountPath: /etc/dex/tls
@@ -131,7 +131,7 @@ spec:
         command:
         - /bin/sh
         - -c
-        - /install-config.sh >/var/log/kubernetes/dex-install-config.log 2>&1
+        - /install-config.sh >K8S_LOG_DIR/dex-install-config.log 2>&1
         env:
         - name: DEX__LDAP_HOST
           valueFrom:
@@ -173,14 +173,14 @@ spec:
           mountPath: /etc/dex/cfg
           readOnly: false
         - name: varlog
-          mountPath: /var/log/kubernetes
+          mountPath: K8S_LOG_DIR
           readOnly: false
       volumes:
       - name: cfg
         emptyDir: {}
       - name: varlog
         hostPath:
-          path: /var/log/kubernetes
+          path: K8S_LOG_DIR
       - name: dex-tls
         secret:
           secretName: dex-tls
@@ -239,7 +239,7 @@ spec:
           --tls-cert /etc/dex/web-app-tls/tls.crt
           --tls-key /etc/dex/web-app-tls/tls.key
           --redirect-uri https://MASTER_IP:32001/callback
-          >/var/log/kubernetes/$HOSTNAME.log 2>&1
+          >K8S_LOG_DIR/$HOSTNAME.log 2>&1
         env:
         - name: DEX__STATIC_KUBERNETES_SECRET
           valueFrom:
@@ -251,7 +251,7 @@ spec:
           mountPath: K8S_KUBESRV_DIR
           readOnly: true
         - name: varlog
-          mountPath: /var/log/kubernetes
+          mountPath: K8S_LOG_DIR
           readOnly: false
         - name: dex-web-app-tls
           mountPath: /etc/dex/web-app-tls
@@ -261,7 +261,7 @@ spec:
           path: K8S_KUBESRV_DIR
       - name: varlog
         hostPath:
-          path: /var/log/kubernetes
+          path: K8S_LOG_DIR
       - name: dex-web-app-tls
         secret:
           secretName: dex-web-app-tls

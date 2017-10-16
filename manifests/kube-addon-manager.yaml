@@ -16,7 +16,7 @@ spec:
     command:
     - /bin/bash
     - -c
-    - /opt/kube-addons.sh >/var/log/kubernetes/kube-addon-manager.log 2>&1
+    - /opt/kube-addons.sh >K8S_LOG_DIR/kube-addon-manager.log 2>&1
     resources:
       requests:
         cpu: 5m
@@ -31,7 +31,7 @@ spec:
     - mountPath: K8S_KUBESRV_DIR
       name: data
       readOnly: true
-    - mountPath: /var/log/kubernetes
+    - mountPath: K8S_LOG_DIR
       name: varlog
       readOnly: false
   volumes:
@@ -42,5 +42,5 @@ spec:
       path: K8S_KUBESRV_DIR
     name: data
   - hostPath:
-      path: /var/log/kubernetes
+      path: K8S_LOG_DIR
     name: varlog
