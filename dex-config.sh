@@ -64,17 +64,3 @@ dex-config::delete_configmap ldap-ca-crt
 kubectl create configmap ldap-ca-crt \
     --from-file=ldap-ca.crt="$LDAP_CA_FILENAME"
 
-
-# creating secret with dex cert and key
-dex-config::delete_secret dex-tls
-kubectl create secret tls dex-tls \
-        --cert=$K8S_CERTS_DIR/dex.crt \
-        --key=$K8S_KEYS_DIR/dex.key
-
-
-# creating secret with dex-web-app cert and key
-dex-config::delete_secret dex-web-app-tls
-kubectl create secret tls dex-web-app-tls \
-        --cert=$K8S_CERTS_DIR/dex-web-app.crt \
-        --key=$K8S_KEYS_DIR/dex-web-app.key
-

@@ -54,8 +54,8 @@ data:
         inCluster: true
     web:
       https: 0.0.0.0:5556
-      tlsCert: /etc/dex/tls/tls.crt
-      tlsKey: /etc/dex/tls/tls.key
+      tlsCert: /etc/dex/certs/dex.crt
+      tlsKey: /etc/dex/certs/dex.key
     expiry:
       signingKeys: "6h"
       idTokens: "24h"
@@ -121,8 +121,8 @@ spec:
         - name: varlog
           mountPath: K8S_LOG_DIR
           readOnly: false
-        - name: dex-tls
-          mountPath: /etc/dex/tls
+        - name: dex-certs
+          mountPath: /etc/dex/certs
         - name: ldap-ca-crt
           mountPath: /etc/dex/ldap
       initContainers:
@@ -181,9 +181,9 @@ spec:
       - name: varlog
         hostPath:
           path: K8S_LOG_DIR
-      - name: dex-tls
+      - name: dex-certs
         secret:
-          secretName: dex-tls
+          secretName: dex-certs
       - name: ldap-ca-crt
         configMap:
           name: ldap-ca-crt
@@ -236,8 +236,8 @@ spec:
           --issuer https://MASTER_IP:32000
           --issuer-root-ca K8S_CERTS_DIR/ca.crt
           --listen https://0.0.0.0:5555
-          --tls-cert /etc/dex/web-app-tls/tls.crt
-          --tls-key /etc/dex/web-app-tls/tls.key
+          --tls-cert /etc/dex-web-app/certs/dex-web-app.crt
+          --tls-key /etc/dex-web-app/certs/dex-web-app.key
           --redirect-uri https://MASTER_IP:32001/callback
           >K8S_LOG_DIR/$HOSTNAME.log 2>&1
         env:
@@ -253,8 +253,8 @@ spec:
         - name: varlog
           mountPath: K8S_LOG_DIR
           readOnly: false
-        - name: dex-web-app-tls
-          mountPath: /etc/dex/web-app-tls
+        - name: dex-web-app-certs
+          mountPath: /etc/dex-web-app/certs
       volumes:
       - name: data
         hostPath:
@@ -262,9 +262,9 @@ spec:
       - name: varlog
         hostPath:
           path: K8S_LOG_DIR
-      - name: dex-web-app-tls
+      - name: dex-web-app-certs
         secret:
-          secretName: dex-web-app-tls
+          secretName: dex-web-app-certs
 ---
 apiVersion: v1
 kind: Service
@@ -282,3 +282,209 @@ spec:
     nodePort: 32001
   selector:
     app: dex-web-app
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dex-web-app-init
+  namespace: kube-system
+  labels:
+    k8s-app: dex-web-app
+    addonmanager.kubernetes.io/mode: Reconcile
+data:
+  script: |
+    #!/bin/bash
+    # vim: set sw=2 :
+
+    set -o errexit
+    set -o errtrace
+    set -o nounset
+    set -o pipefail
+    shopt -s expand_aliases
+
+    error_report() {
+      echo "errexit on line $(caller)" >&2
+    }
+
+    trap error_report ERR
+
+    DEBUG=${DEBUG:-false}
+    if [[ $DEBUG == true ]]; then
+      set -x
+    fi
+
+    token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    alias kubectl="./kubectl --token=$token"
+
+    crt=$(base64 < K8S_CERTS_DIR/dex-web-app.crt | tr -d \\n)
+    key=$(base64 < K8S_KEYS_DIR/dex-web-app.key | tr -d \\n)
+    echo "$certs" | sed -e "s/\$crt/$crt/" -e "s/\$key/$key/" > dex-web-app-certs.yaml
+
+    kubectl apply -f dex-web-app-certs.yaml
+    exit $?
+
+  certs: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: dex-web-app-certs
+      namespace: kube-system
+    type: Opaque
+    data:
+      dex-web-app.crt: $crt
+      dex-web-app.key: $key
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dex-web-app-init
+  namespace: kube-system
+  labels:
+    k8s-app: dex-web-app
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-app: dex-web-app
+    spec:
+      containers:
+      - name: dex-web-app-init
+        image: hfrog/common-init:v1.0
+        command:
+        - /bin/bash
+        - -c
+        - /bootstrap.sh >K8S_LOG_DIR/dex-web-app-init.log 2>&1
+        env:
+        - name: script
+          valueFrom:
+            configMapKeyRef:
+              name: dex-web-app-init
+              key: script
+        - name: certs
+          valueFrom:
+            configMapKeyRef:
+              name: dex-web-app-init
+              key: certs
+        volumeMounts:
+        - name: data
+          mountPath: K8S_KUBESRV_DIR
+          readOnly: true
+        - name: varlog
+          mountPath: K8S_LOG_DIR
+          readOnly: false
+      volumes:
+      - name: data
+        hostPath:
+          path: K8S_KUBESRV_DIR
+      - name: varlog
+        hostPath:
+          path: K8S_LOG_DIR
+      restartPolicy: Never
+      # important, because needed certs exist only on master node
+      nodeSelector:
+        role: master
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dex-init
+  namespace: kube-system
+  labels:
+    k8s-app: dex
+    addonmanager.kubernetes.io/mode: Reconcile
+data:
+  script: |
+    #!/bin/bash
+    # vim: set sw=2 :
+
+    set -o errexit
+    set -o errtrace
+    set -o nounset
+    set -o pipefail
+    shopt -s expand_aliases
+
+    error_report() {
+      echo "errexit on line $(caller)" >&2
+    }
+
+    trap error_report ERR
+
+    DEBUG=${DEBUG:-false}
+    if [[ $DEBUG == true ]]; then
+      set -x
+    fi
+
+    token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+    alias kubectl="./kubectl --token=$token"
+
+    crt=$(base64 < K8S_CERTS_DIR/dex.crt | tr -d \\n)
+    key=$(base64 < K8S_KEYS_DIR/dex.key | tr -d \\n)
+    echo "$certs" | sed -e "s/\$crt/$crt/" -e "s/\$key/$key/" > dex-certs.yaml
+
+    kubectl apply -f dex-certs.yaml
+    exit $?
+
+  certs: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: dex-certs
+      namespace: kube-system
+    type: Opaque
+    data:
+      dex.crt: $crt
+      dex.key: $key
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dex-init
+  namespace: kube-system
+  labels:
+    k8s-app: dex
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  template:
+    metadata:
+      labels:
+        k8s-app: dex
+    spec:
+      containers:
+      - name: dex-init
+        image: hfrog/common-init:v1.0
+        command:
+        - /bin/bash
+        - -c
+        - /bootstrap.sh >K8S_LOG_DIR/dex-init.log 2>&1
+        env:
+        - name: script
+          valueFrom:
+            configMapKeyRef:
+              name: dex-init
+              key: script
+        - name: certs
+          valueFrom:
+            configMapKeyRef:
+              name: dex-init
+              key: certs
+        volumeMounts:
+        - name: data
+          mountPath: K8S_KUBESRV_DIR
+          readOnly: true
+        - name: varlog
+          mountPath: K8S_LOG_DIR
+          readOnly: false
+      volumes:
+      - name: data
+        hostPath:
+          path: K8S_KUBESRV_DIR
+      - name: varlog
+        hostPath:
+          path: K8S_LOG_DIR
+      restartPolicy: Never
+      # important, because needed certs exist only on master node
+      nodeSelector:
+        role: master
+---
+
