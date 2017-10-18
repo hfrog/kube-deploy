@@ -85,6 +85,7 @@ kube::multinode::main() {
   K8S_CERTS_DIR=$K8S_KUBESRV_DIR/crt
   K8S_KEYS_DIR=$K8S_KUBESRV_DIR/key
   K8S_KUBECONFIG_DIR=$K8S_KUBESRV_DIR/kubeconfig
+  K8S_DATA_DIR=$K8S_KUBESRV_DIR/data
   K8S_KUBELET_DIR=/var/lib/kubelet
   K8S_LOG_DIR=/var/log/kubernetes
 
@@ -286,6 +287,7 @@ kube::util::expand_vars() {
         -e "s|K8S_CERTS_DIR|$K8S_CERTS_DIR|g" \
         -e "s|K8S_KEYS_DIR|$K8S_KEYS_DIR|g" \
         -e "s|K8S_LOG_DIR|$K8S_LOG_DIR|g" \
+        -e "s|K8S_DATA_DIR|$K8S_DATA_DIR|g" \
         -e "s|SERVICE_NETWORK|$SERVICE_NETWORK|g" \
         -e "s|IP_POOL|$IP_POOL|g" \
         -e "s|K8S_OIDC|$K8S_OIDC|g" \

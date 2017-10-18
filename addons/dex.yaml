@@ -54,8 +54,8 @@ data:
         inCluster: true
     web:
       https: 0.0.0.0:5556
-      tlsCert: /etc/dex/certs/dex.crt
-      tlsKey: /etc/dex/certs/dex.key
+      tlsCert: /etc/dex/tls/dex.crt
+      tlsKey: /etc/dex/tls/dex.key
     expiry:
       signingKeys: "6h"
       idTokens: "24h"
@@ -121,8 +121,8 @@ spec:
         - name: varlog
           mountPath: K8S_LOG_DIR
           readOnly: false
-        - name: dex-certs
-          mountPath: /etc/dex/certs
+        - name: dex-tls
+          mountPath: /etc/dex/tls
         - name: ldap-ca-crt
           mountPath: /etc/dex/ldap
       initContainers:
@@ -181,15 +181,12 @@ spec:
       - name: varlog
         hostPath:
           path: K8S_LOG_DIR
-      - name: dex-certs
+      - name: dex-tls
         secret:
-          secretName: dex-certs
+          secretName: dex-tls
       - name: ldap-ca-crt
-        configMap:
-          name: ldap-ca-crt
-          items:
-          - key: ldap-ca.crt
-            path: ldap-ca.crt
+        secret:
+          secretName: ldap-ca-crt
 ---
 apiVersion: v1
 kind: Service
@@ -236,8 +233,8 @@ spec:
           --issuer https://MASTER_IP:32000
           --issuer-root-ca K8S_CERTS_DIR/ca.crt
           --listen https://0.0.0.0:5555
-          --tls-cert /etc/dex-web-app/certs/dex-web-app.crt
-          --tls-key /etc/dex-web-app/certs/dex-web-app.key
+          --tls-cert /etc/dex-web-app/tls/dex-web-app.crt
+          --tls-key /etc/dex-web-app/tls/dex-web-app.key
           --redirect-uri https://MASTER_IP:32001/callback
           >K8S_LOG_DIR/$HOSTNAME.log 2>&1
         env:
@@ -253,8 +250,8 @@ spec:
         - name: varlog
           mountPath: K8S_LOG_DIR
           readOnly: false
-        - name: dex-web-app-certs
-          mountPath: /etc/dex-web-app/certs
+        - name: dex-web-app-tls
+          mountPath: /etc/dex-web-app/tls
       volumes:
       - name: data
         hostPath:
@@ -262,9 +259,9 @@ spec:
       - name: varlog
         hostPath:
           path: K8S_LOG_DIR
-      - name: dex-web-app-certs
+      - name: dex-web-app-tls
         secret:
-          secretName: dex-web-app-certs
+          secretName: dex-web-app-tls
 ---
 apiVersion: v1
 kind: Service
@@ -318,16 +315,14 @@ data:
 
     crt=$(base64 < K8S_CERTS_DIR/dex-web-app.crt | tr -d \\n)
     key=$(base64 < K8S_KEYS_DIR/dex-web-app.key | tr -d \\n)
-    echo "$certs" | sed -e "s/\$crt/$crt/" -e "s/\$key/$key/" > dex-web-app-certs.yaml
-
-    kubectl apply -f dex-web-app-certs.yaml
+    echo "$manifests" | sed -e "s/\$crt/$crt/" -e "s/\$key/$key/" | kubectl apply -f -
     exit $?
 
-  certs: |
+  manifests: |
     apiVersion: v1
     kind: Secret
     metadata:
-      name: dex-web-app-certs
+      name: dex-web-app-tls
       namespace: kube-system
     type: Opaque
     data:
@@ -361,11 +356,11 @@ spec:
             configMapKeyRef:
               name: dex-web-app-init
               key: script
-        - name: certs
+        - name: manifests
           valueFrom:
             configMapKeyRef:
               name: dex-web-app-init
-              key: certs
+              key: manifests
         volumeMounts:
         - name: data
           mountPath: K8S_KUBESRV_DIR
@@ -415,26 +410,76 @@ data:
       set -x
     fi
 
+    # load variables
+    eval declare $(cat K8S_DATA_DIR/dex/dex.cfg)
+
     token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
     alias kubectl="./kubectl --token=$token"
 
     crt=$(base64 < K8S_CERTS_DIR/dex.crt | tr -d \\n)
     key=$(base64 < K8S_KEYS_DIR/dex.key | tr -d \\n)
-    echo "$certs" | sed -e "s/\$crt/$crt/" -e "s/\$key/$key/" > dex-certs.yaml
+    ldap_ca_crt=$(base64 < K8S_DATA_DIR/dex/$DEX__LDAP_CA_FILENAME | tr -d \\n)
+    static_kubernetes_secret=$(echo -n $DEX__STATIC_KUBERNETES_SECRET | base64 | tr -d \\n)
+    ldap_host=$(echo -n $DEX__LDAP_HOST | base64 | tr -d \\n)
+    ldap_bind_dn=$(echo -n $DEX__LDAP_BIND_DN | base64 | tr -d \\n)
+    ldap_bind_pw=$(echo -n $DEX__LDAP_BIND_PW | base64 | tr -d \\n)
+    ldap_usersearch_base_dn=$(echo -n $DEX__LDAP_USERSEARCH_BASE_DN | base64 | tr -d \\n)
+    ldap_groupsearch_base_dn=$(echo -n $DEX__LDAP_GROUPSEARCH_BASE_DN | base64 | tr -d \\n)
 
-    kubectl apply -f dex-certs.yaml
+    echo "$manifests" | sed \
+        -e "s/\$crt/$crt/" \
+        -e "s/\$key/$key/" \
+        -e "s/\$ldap_ca_crt/$ldap_ca_crt/" \
+        -e "s/\$static_kubernetes_secret/$static_kubernetes_secret/" \
+        -e "s/\$ldap_host/$ldap_host/" \
+        -e "s/\$ldap_bind_dn/$ldap_bind_dn/" \
+        -e "s/\$ldap_bind_pw/$ldap_bind_pw/" \
+        -e "s/\$ldap_usersearch_base_dn/$ldap_usersearch_base_dn/" \
+        -e "s/\$ldap_groupsearch_base_dn/$ldap_groupsearch_base_dn/" \
+        | kubectl apply -f -
     exit $?
 
-  certs: |
+  manifests: |
     apiVersion: v1
     kind: Secret
     metadata:
-      name: dex-certs
+      name: dex-tls
       namespace: kube-system
     type: Opaque
     data:
       dex.crt: $crt
       dex.key: $key
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: ldap-ca-crt
+      namespace: kube-system
+    type: Opaque
+    data:
+      ldap-ca.crt: $ldap_ca_crt
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: dex-static
+      namespace: kube-system
+    type: Opaque
+    data:
+      kubernetes_secret: $static_kubernetes_secret
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: dex-ldap
+      namespace: kube-system
+    type: Opaque
+    data:
+      host: $ldap_host
+      bindDN: $ldap_bind_dn
+      bindPW: $ldap_bind_pw
+      user_baseDN: $ldap_usersearch_base_dn
+      group_baseDN: $ldap_groupsearch_base_dn
 ---
 apiVersion: batch/v1
 kind: Job
@@ -463,11 +508,11 @@ spec:
             configMapKeyRef:
               name: dex-init
               key: script
-        - name: certs
+        - name: manifests
           valueFrom:
             configMapKeyRef:
               name: dex-init
-              key: certs
+              key: manifests
         volumeMounts:
         - name: data
           mountPath: K8S_KUBESRV_DIR
@@ -486,5 +531,3 @@ spec:
       # important, because needed certs exist only on master node
       nodeSelector:
         role: master
----
-
