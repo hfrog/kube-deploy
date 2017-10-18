@@ -4,6 +4,13 @@
 dex::init() {
   kube::log::status "dex init"
   if [[ $OPENID == true ]]; then
+    K8S_OIDC="\
+      --oidc-issuer-url=https://$MASTER_IP:32000 \
+      --oidc-client-id=kubernetes \
+      --oidc-ca-file=$K8S_CERTS_DIR/ca.crt \
+      --oidc-username-claim=email \
+      --oidc-groups-claim=groups"
+
     # certs may not be needed in case of external certs.
     # just create them anyway
     pki::create_server_cert dex

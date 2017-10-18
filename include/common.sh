@@ -65,6 +65,7 @@ kube::multinode::main() {
   CLUSTER_DOMAIN=cluster.local
   RBAC=${RBAC:-true}
   OPENID=${OPENID:-false}
+  K8S_OIDC=""
 
   CURRENT_PLATFORM=$(kube::helpers::host_platform)
   K8S_ARCH=${K8S_ARCH:-${CURRENT_PLATFORM##*/}}
@@ -108,17 +109,6 @@ kube::multinode::main() {
     K8S_AUTHZ_MODE=RBAC
   else
     K8S_AUTHZ_MODE=AlwaysAllow
-  fi
-
-  if [[ $OPENID == true ]]; then
-    K8S_OIDC="\
-      --oidc-issuer-url=https://$MASTER_IP:32000 \
-      --oidc-client-id=kubernetes \
-      --oidc-ca-file=$K8S_CERTS_DIR/ca.crt \
-      --oidc-username-claim=email \
-      --oidc-groups-claim=groups"
-  else
-    K8S_OIDC=""
   fi
 
   KUBELET_MOUNTS="\
@@ -235,9 +225,9 @@ kube::multinode::start_k8s_master() {
   kube::multinode::cleanup_master
   kube::multinode::copy_master_pki_files
   kube::multinode::create_basic_auth
-  kube::multinode::create_master_manifests
-  kube::multinode::create_addons
   kube::multinode::create_master_kubeconfigs
+  kube::multinode::create_addons # addons go before manifests because they modify variables
+  kube::multinode::create_master_manifests
   KUBELET_LABELS="--node-labels role=master"
 
   kube::log::status "Launching Kubernetes master components..."
