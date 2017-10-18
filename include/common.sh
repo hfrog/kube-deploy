@@ -298,6 +298,7 @@ kube::multinode::cleanup_logs() {
 
 kube::multinode::cleanup_addons() {
   rm -f $K8S_ADDONS_DIR/*
+  source include/dashboard.sh cleanup
   source include/dex.sh cleanup
 }
 
@@ -325,6 +326,7 @@ kube::multinode::create_addons() {
     [ -f $f ] # * protection. will exit if $f is not a file
     kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
   done
+  source include/dashboard.sh init
   if [[ $OPENID == true ]]; then
     source include/dex.sh init
   fi
@@ -395,7 +397,7 @@ kube::multinode::copy_worker_pki_files() {
 kube::multinode::copy_master_pki_files() {
   kube::multinode::copy_worker_pki_files
   kube::log::status "Creating master certs and keys"
-  for f in {kubernetes-master,addon-manager,apiserver,controller-manager,scheduler,dashboard}.{crt,key}; do
+  for f in {kubernetes-master,addon-manager,apiserver,controller-manager,scheduler}.{crt,key}; do
     pki::place_master_file $f
   done
 }
