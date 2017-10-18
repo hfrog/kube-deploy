@@ -197,7 +197,6 @@ kube::multinode::start_k8s() {
     /bin/sh -c "/hyperkube kubelet \
       --pod-manifest-path=$K8S_MANIFESTS_DIR \
       --allow-privileged \
-      --require-kubeconfig \
       --kubeconfig=$K8S_KUBECONFIG_DIR/kubeconfig-kubelet-$IP_ADDRESS.yaml \
       --cluster-dns=$SERVICE_NETWORK.10 \
       --cluster-domain=$CLUSTER_DOMAIN \
@@ -208,7 +207,6 @@ kube::multinode::start_k8s() {
       --authorization-mode=Webhook \
       --authentication-token-webhook \
       --make-iptables-util-chains=true \
-      --keep-terminated-pod-volumes=false \
       --streaming-connection-idle-timeout=1h \
       --read-only-port=0 \
       --cadvisor-port=0 \
