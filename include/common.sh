@@ -298,6 +298,7 @@ kube::multinode::cleanup_logs() {
 
 kube::multinode::cleanup_addons() {
   rm -f $K8S_ADDONS_DIR/*
+  source include/dex.sh cleanup
 }
 
 kube::multinode::cleanup_master() {
@@ -321,23 +322,19 @@ kube::multinode::create_addons() {
   kube::log::status "Creating addons"
   kube::util::assure_dir $K8S_ADDONS_DIR
   for f in addons/*; do
-    [ -f $f ] # * protection
-    if [[ $(basename $f) == dex.yaml ]]; then
-      if [[ $OPENID == true ]]; then
-        kube::log::status "OPENID is on, don't forget to run dex-config.sh"
-      else
-        continue
-      fi
-    fi
+    [ -f $f ] # * protection. will exit if $f is not a file
     kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
   done
+  if [[ $OPENID == true ]]; then
+    source include/dex.sh init
+  fi
 }
 
 kube::multinode::create_master_manifests() {
   kube::log::status "Creating master manifests"
   kube::util::assure_dir $K8S_MANIFESTS_DIR
   for f in manifests/*; do
-    [ -f $f ] # * protection
+    [ -f $f ] # * protection. will exit if $f is not a file
     kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
 }
@@ -398,7 +395,7 @@ kube::multinode::copy_worker_pki_files() {
 kube::multinode::copy_master_pki_files() {
   kube::multinode::copy_worker_pki_files
   kube::log::status "Creating master certs and keys"
-  for f in {kubernetes-master,addon-manager,apiserver,controller-manager,scheduler,dashboard,dex,dex-web-app}.{crt,key}; do
+  for f in {kubernetes-master,addon-manager,apiserver,controller-manager,scheduler,dashboard}.{crt,key}; do
     pki::place_master_file $f
   done
 }
