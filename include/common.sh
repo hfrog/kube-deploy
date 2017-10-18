@@ -31,9 +31,9 @@ if [[ $DEBUG == true ]]; then
   set -x
 fi
 
-cd $(dirname $BASH_SOURCE)
-source cni-plugin.sh
-source pki.sh
+cd $(dirname $(dirname $BASH_SOURCE))
+source include/cni-plugin.sh
+source include/pki.sh
 
 kube::multinode::main() {
 
@@ -321,6 +321,7 @@ kube::multinode::create_addons() {
   kube::log::status "Creating addons"
   kube::util::assure_dir $K8S_ADDONS_DIR
   for f in addons/*; do
+    [ -f $f ] # * protection
     if [[ $(basename $f) == dex.yaml ]]; then
       if [[ $OPENID == true ]]; then
         kube::log::status "OPENID is on, don't forget to run dex-config.sh"
@@ -336,6 +337,7 @@ kube::multinode::create_master_manifests() {
   kube::log::status "Creating master manifests"
   kube::util::assure_dir $K8S_MANIFESTS_DIR
   for f in manifests/*; do
+    [ -f $f ] # * protection
     kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
 }

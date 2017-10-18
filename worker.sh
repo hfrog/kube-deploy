@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source $(dirname $BASH_SOURCE)/common.sh
+source $(dirname $BASH_SOURCE)/include/common.sh
 
 # Make sure MASTER_IP is properly set
 if [[ -z ${MASTER_IP} ]]; then
