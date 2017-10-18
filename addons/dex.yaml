@@ -376,7 +376,7 @@ spec:
         hostPath:
           path: K8S_LOG_DIR
       restartPolicy: Never
-      # important, because needed certs exist only on master node
+      # important, because needed files exist only on master node
       nodeSelector:
         role: master
 ---
@@ -528,6 +528,6 @@ spec:
         hostPath:
           path: K8S_LOG_DIR
       restartPolicy: Never
-      # important, because needed certs exist only on master node
+      # important, because needed files exist only on master node
       nodeSelector:
         role: master
