@@ -288,8 +288,11 @@ kube::multinode::cleanup_logs() {
 
 kube::multinode::cleanup_addons() {
   rm -f $K8S_ADDONS_DIR/*
-  source include/dashboard.sh cleanup
-  source include/dex.sh cleanup
+  for f in addons/*; do
+    if [[ -d $f ]]; then
+      source $f/$(basename $f).sh cleanup
+    fi
+  done
 }
 
 kube::multinode::cleanup_master() {
@@ -313,20 +316,21 @@ kube::multinode::create_addons() {
   kube::log::status "Creating addons"
   kube::util::assure_dir $K8S_ADDONS_DIR
   for f in addons/*; do
-    [ -f $f ] # * protection. will exit if $f is not a file
-    kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
+    if [[ -f $f ]]; then
+      kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
+    elif [[ -d $f ]]; then
+      source $f/$(basename $f).sh init
+    else
+      continue
+    fi
   done
-  source include/dashboard.sh init
-  if [[ $OPENID == true ]]; then
-    source include/dex.sh init
-  fi
 }
 
 kube::multinode::create_master_manifests() {
   kube::log::status "Creating master manifests"
   kube::util::assure_dir $K8S_MANIFESTS_DIR
   for f in manifests/*; do
-    [ -f $f ] # * protection. will exit if $f is not a file
+    [ -f $f ] || continue
     kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
 }
