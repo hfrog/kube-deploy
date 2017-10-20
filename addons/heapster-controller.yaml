@@ -16,7 +16,7 @@ metadata:
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   replicas: 1
-  revisionHistoryLimit: 1
+  revisionHistoryLimit: 0
   selector:
     matchLabels:
       k8s-app: heapster

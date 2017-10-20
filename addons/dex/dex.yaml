@@ -100,7 +100,7 @@ metadata:
   name: dex
 spec:
   replicas: 1
-  revisionHistoryLimit: 1
+  revisionHistoryLimit: 0
   selector:
     matchLabels:
       app: dex
@@ -217,7 +217,7 @@ metadata:
   name: dex-web-app
 spec:
   replicas: 1
-  revisionHistoryLimit: 1
+  revisionHistoryLimit: 0
   selector:
     matchLabels:
       app: dex-web-app
