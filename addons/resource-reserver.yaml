@@ -1,5 +1,5 @@
 # vim: set sw=2 :
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1beta2
 kind: DaemonSet
 metadata:
   name: resource-reserver
@@ -7,7 +7,13 @@ metadata:
     role: resource-reserver
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
+  selector:
+    matchLabels:
+      name: resource-reserver
   template:
+    metadata:
+      labels:
+        name: resource-reserver
     spec:
       containers:
       - name: sleep-forever
@@ -15,6 +21,3 @@ spec:
         resources:
           requests:
             memory: KUBELET_RESERVE_MEMORY
-    metadata:
-      labels:
-        name: resource-reserver

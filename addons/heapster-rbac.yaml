@@ -1,7 +1,7 @@
 # Heapster's pod_nanny monitors the heapster deployment & its pod(s), and scales
 # the resources of the deployment if necessary.
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: system:heapster
   labels:
@@ -26,7 +26,7 @@ rules:
   - watch
 ---
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: heapster-binding
   labels:
@@ -41,7 +41,7 @@ subjects:
   namespace: kube-system
 ---
 kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: system:pod-nanny
   namespace: kube-system
@@ -63,7 +63,7 @@ rules:
   - update
 ---
 kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: heapster-binding
   namespace: kube-system

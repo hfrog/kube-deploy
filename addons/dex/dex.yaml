@@ -1,6 +1,6 @@
 # vim: set sw=2 :
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: dex
   labels:
@@ -16,7 +16,7 @@ rules:
     nonResourceURLs: []
 ---
 kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: dex
   labels:
@@ -91,7 +91,7 @@ data:
       name: 'Dex web app'
       secret: "__DEX__STATIC_KUBERNETES_SECRET__"
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
   labels:
@@ -101,6 +101,9 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: dex
   template:
     metadata:
       labels:
@@ -205,7 +208,7 @@ spec:
   selector:
     app: dex
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
   labels:
@@ -215,6 +218,9 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: dex-web-app
   template:
     metadata:
       labels:
