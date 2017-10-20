@@ -48,6 +48,13 @@ dex::init() {
         kube::log::fatal "There is no file $ff, please create it manually"
       fi
     done
+
+    # copy additional manifests
+    for f in $src_dex_data_dir/*yaml; do
+      if [[ -f $f ]]; then
+        kube::util::expand_vars $f > $K8S_ADDONS_DIR/$(basename $f)
+      fi
+    done
   fi
 }
 
