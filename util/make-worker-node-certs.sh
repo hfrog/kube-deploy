@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source $(dirname $BASH_SOURCE)/include/common.sh
+source $(dirname $(dirname $BASH_SOURCE))/include/common.sh
 
 kube::multinode::main
 

@@ -113,7 +113,7 @@ rs/http-responder-925862524  3  3  3  17s  http-responder  hfrog/http-responder 
 
 To deploy additional worker nodes, generate certificates and keys at first
 ```
-master# ./make-worker-node-certs.sh <worker ip address>
+master# ./util/make-worker-node-certs.sh <worker ip address>
 ```
 then copy files from master:/root/kube-deploy-data/certs to worker:/root/kube-deploy-data/certs, login to the worker and run
 ```
