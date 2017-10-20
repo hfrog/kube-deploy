@@ -115,7 +115,7 @@ To deploy additional worker nodes, generate certificates and keys at first
 ```
 master# ./make-worker-node-certs.sh <worker ip address>
 ```
-then copy files from master:/root/k8s-certs to worker:/root/k8s-certs, login to the worker and run
+then copy files from master:/root/kube-deploy-data/certs to worker:/root/kube-deploy-data/certs, login to the worker and run
 ```
 worker# git clone https://github.com/hfrog/kube-deploy.git
 worker# cd kube-deploy

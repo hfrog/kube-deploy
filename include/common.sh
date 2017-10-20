@@ -89,9 +89,10 @@ kube::multinode::main() {
   K8S_DATA_DIR=$K8S_KUBESRV_DIR/data
   K8S_KUBELET_DIR=/var/lib/kubelet
   K8S_LOG_DIR=/var/log/kubernetes
-
   K8S_CA_DIR=$K8S_KUBESRV_DIR/ca
-  SRC_CERTS_DIR=${SRC_CERTS_DIR:-"/root/k8s-certs"}
+
+  SRC_DATA_DIR=${SRC_DATA_DIR:-"/root/kube-deploy-data"}
+  SRC_CERTS_DIR=$SRC_DATA_DIR/certs
 
   ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
 
@@ -147,7 +148,7 @@ kube::multinode::log_variables() {
   kube::log::status "ETCD_VERSION is set to: $ETCD_VERSION"
   kube::log::status "K8S_ARCH is set to: $K8S_ARCH"
   kube::log::status "--------------------------------------------"
-  kube::log::status "SRC_CERTS_DIR is set to: $SRC_CERTS_DIR"
+  kube::log::status "SRC_DATA_DIR is set to: $SRC_DATA_DIR"
   kube::log::status "K8S_KUBESRV_DIR is set to: $K8S_KUBESRV_DIR"
   kube::log::status "K8S_KUBELET_DIR is set to: $K8S_KUBELET_DIR"
   kube::log::status "K8S_LOG_DIR is set to: $K8S_LOG_DIR"
