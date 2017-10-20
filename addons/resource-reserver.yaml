@@ -1,0 +1,20 @@
+# vim: set sw=2 :
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: resource-reserver
+  labels:
+    role: resource-reserver
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  template:
+    spec:
+      containers:
+      - name: sleep-forever
+        image: gcr.io/google_containers/pause:0.8.0
+        resources:
+          requests:
+            memory: KUBELET_RESERVE_MEMORY
+    metadata:
+      labels:
+        name: resource-reserver

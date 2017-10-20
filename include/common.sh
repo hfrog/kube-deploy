@@ -93,6 +93,7 @@ kube::multinode::main() {
 
   SRC_DATA_DIR=${SRC_DATA_DIR:-"/root/kube-deploy-data"}
   SRC_CERTS_DIR=$SRC_DATA_DIR/certs
+  KUBELET_RESERVE_MEMORY=0 # guess is 4000Mi for real servers
 
   ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
 
@@ -280,6 +281,7 @@ kube::util::expand_vars() {
         -e "s|SERVICE_NETWORK|$SERVICE_NETWORK|g" \
         -e "s|IP_POOL|$IP_POOL|g" \
         -e "s|K8S_OIDC|$K8S_OIDC|g" \
+        -e "s|KUBELET_RESERVE_MEMORY|$KUBELET_RESERVE_MEMORY|g" \
         $1
 }
 
