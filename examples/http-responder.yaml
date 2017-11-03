@@ -5,6 +5,9 @@ metadata:
   name: http-responder
 spec:
   replicas: 3
+  selector:
+    matchLabels:
+      name: http-responder
   template:
     spec:
       containers:
