@@ -71,7 +71,6 @@ kube::multinode::main() {
   K8S_ARCH=${K8S_ARCH:-${CURRENT_PLATFORM##*/}}
 
   ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
-  ETCD_NET_PARAM="--net host"
   ETCD_IP=${ETCD_IP:-$MASTER_IP}
 
   RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
@@ -94,8 +93,6 @@ kube::multinode::main() {
   SRC_DATA_DIR=${SRC_DATA_DIR:-"/root/kube-deploy-data"}
   SRC_CERTS_DIR=$SRC_DATA_DIR/certs
   KUBELET_RESERVE_MEMORY=0 # guess is 4000Mi for real servers
-
-  ETCD_NET_PARAM="-p 2379:2379 -p 2380:2380"
 
   if [[ $USE_CONTAINERIZED == true ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
@@ -164,7 +161,7 @@ kube::multinode::start_etcd() {
   docker run -d \
     --name kube_etcd_$(kube::helpers::small_sha) \
     --restart=$RESTART_POLICY \
-    $ETCD_NET_PARAM \
+    -p 2379:2379 -p 2380:2380 \
     -v $K8S_KUBELET_DIR/etcd:/var/etcd \
     gcr.io/google_containers/etcd-$K8S_ARCH:$ETCD_VERSION \
     /usr/local/bin/etcd \
