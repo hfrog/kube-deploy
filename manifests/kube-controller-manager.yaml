@@ -24,7 +24,7 @@ spec:
       --root-ca-file=K8S_CERTS_DIR/ca.crt
       --min-resync-period=3m
       --leader-elect=true
-      --cluster-cidr=10.1.0.0/16
+      --cluster-cidr=IP_POOL
       --profiling=false
       --v=2 >K8S_LOG_DIR/kube-controller-manager.log 2>&1
     resources:
