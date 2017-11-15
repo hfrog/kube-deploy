@@ -67,8 +67,8 @@ kube::multinode::main() {
   OPENID=${OPENID:-false}
   K8S_OIDC=""
 
-  CURRENT_PLATFORM=$(kube::helpers::host_platform)
-  K8S_ARCH=${K8S_ARCH:-${CURRENT_PLATFORM##*/}}
+  CURRENT_PLATFORM=$(kube::helpers::host_arch)
+  K8S_ARCH=${K8S_ARCH:-${CURRENT_PLATFORM}}
 
   ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
   ETCD_IP=${ETCD_IP:-$MASTER_IP}
@@ -422,15 +422,8 @@ kube::helpers::small_sha() {
 }
 
 # Get the architecture for the current machine
-kube::helpers::host_platform() {
-  local host_os
+kube::helpers::host_arch() {
   local host_arch
-  case "$(uname -s)" in
-    Linux)
-      host_os=linux;;
-    *)
-      kube::log::fatal "Unsupported host OS. Must be linux.";;
-  esac
 
   case "$(uname -m)" in
     x86_64*)
@@ -450,7 +443,7 @@ kube::helpers::host_platform() {
     *)
       kube::log::fatal "Unsupported host arch. Must be x86_64, arm, arm64 or ppc64le.";;
   esac
-  echo $host_os/$host_arch
+  echo $host_arch
 }
 
 # Turndown the local cluster
