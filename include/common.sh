@@ -35,6 +35,33 @@ cd $(dirname $(dirname $BASH_SOURCE))
 source include/cni-plugin.sh
 source include/pki.sh
 
+kube::multinode::init_defaults() {
+  declare -g -A DEFAULT
+  DEFAULT[IP_ADDRESS]=$(ip -o -4 addr list $(ip -o -4 route show to default \
+                | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
+  DEFAULT[MASTER_IP]=${DEFAULT[IP_ADDRESS]}
+  DEFAULT[ETCD_IP]=${DEFAULT[MASTER_IP]}
+  DEFAULT[K8S_VERSION]="v1.8.3"
+  DEFAULT[REGISTRY]="gcr.io/google_containers"
+  DEFAULT[IP_POOL]="10.168.0.0/16"
+  DEFAULT[SERVICE_NETWORK]="10.24.0"
+  DEFAULT[CLUSTER_DOMAIN]=cluster.local
+  DEFAULT[RBAC]=true
+  DEFAULT[K8S_AUTHZ_MODE]=RBAC
+  DEFAULT[OPENID]=false
+  DEFAULT[RESTART_POLICY]="unless-stopped"
+  DEFAULT[ETCD_VERSION]="3.0.17"
+  DEFAULT[TIMEOUT_FOR_SERVICES]=20
+  DEFAULT[USE_CONTAINERIZED]="true"
+  DEFAULT[KUBELET_RESERVE_MEMORY]=0 # guess is 4000Mi for real servers
+  DEFAULT[SRC_DATA_DIR]="/root/kube-deploy-data"
+  DEFAULT[K8S_ARCH]=$(kube::helpers::host_arch)
+  DEFAULT[K8S_KUBESRV_DIR]=/srv/kubernetes
+  DEFAULT[K8S_KUBELET_DIR]=/var/lib/kubelet
+  DEFAULT[K8S_LOG_DIR]=/var/log/kubernetes
+}
+
+# Ensure everything is OK, docker is running and we're root
 kube::multinode::main() {
 
   # Require root
@@ -53,32 +80,15 @@ kube::multinode::main() {
     kube::log::fatal "Docker is not running on this machine!"
   fi
 
-  DEFAULT_IP_ADDRESS=$(ip -o -4 addr list $(ip -o -4 route show to default | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
-  IP_ADDRESS=${IP_ADDRESS:-$DEFAULT_IP_ADDRESS}
+  kube::multinode::init_defaults
 
-  # main tunables
-  MASTER_IP=${MASTER_IP:-$IP_ADDRESS}
-  K8S_VERSION=${K8S_VERSION:-"v1.8.3"}
-  REGISTRY=${REGISTRY:-"gcr.io/google_containers"}
-  IP_POOL=${IP_POOL:-"10.168.0.0/16"}
-  SERVICE_NETWORK=${SERVICE_NETWORK:-"10.24.0"}
-  CLUSTER_DOMAIN=cluster.local
-  RBAC=${RBAC:-true}
-  OPENID=${OPENID:-false}
-  K8S_OIDC=""
+  for v in IP_ADDRESS MASTER_IP ETCD_IP K8S_ARCH K8S_VERSION \
+        REGISTRY IP_POOL SERVICE_NETWORK CLUSTER_DOMAIN RBAC OPENID \
+        RESTART_POLICY TIMEOUT_FOR_SERVICES USE_CONTAINERIZED KUBELET_RESERVE_MEMORY ETCD_VERSION \
+        SRC_DATA_DIR K8S_KUBESRV_DIR K8S_KUBELET_DIR K8S_LOG_DIR; do
+    eval $v=\${$v:-\${DEFAULT[$v]}}
+  done
 
-  CURRENT_PLATFORM=$(kube::helpers::host_arch)
-  K8S_ARCH=${K8S_ARCH:-${CURRENT_PLATFORM}}
-
-  ETCD_VERSION=${ETCD_VERSION:-"3.0.17"}
-  ETCD_IP=${ETCD_IP:-$MASTER_IP}
-
-  RESTART_POLICY=${RESTART_POLICY:-"unless-stopped"}
-
-  TIMEOUT_FOR_SERVICES=${TIMEOUT_FOR_SERVICES:-20}
-  USE_CONTAINERIZED=${USE_CONTAINERIZED:-"true"}
-
-  K8S_KUBESRV_DIR=/srv/kubernetes
   K8S_AUTH_DIR=$K8S_KUBESRV_DIR/auth
   K8S_ADDONS_DIR=$K8S_KUBESRV_DIR/addons
   K8S_MANIFESTS_DIR=$K8S_KUBESRV_DIR/manifests
@@ -86,13 +96,9 @@ kube::multinode::main() {
   K8S_KEYS_DIR=$K8S_KUBESRV_DIR/key
   K8S_KUBECONFIG_DIR=$K8S_KUBESRV_DIR/kubeconfig
   K8S_DATA_DIR=$K8S_KUBESRV_DIR/data
-  K8S_KUBELET_DIR=/var/lib/kubelet
-  K8S_LOG_DIR=/var/log/kubernetes
   K8S_CA_DIR=$K8S_KUBESRV_DIR/ca
 
-  SRC_DATA_DIR=${SRC_DATA_DIR:-"/root/kube-deploy-data"}
   SRC_CERTS_DIR=$SRC_DATA_DIR/certs
-  KUBELET_RESERVE_MEMORY=0 # guess is 4000Mi for real servers
 
   if [[ $USE_CONTAINERIZED == true ]]; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
@@ -126,31 +132,29 @@ kube::multinode::main() {
     --network-plugin=cni \
     --cni-conf-dir=/etc/cni/net.d \
     --cni-bin-dir=/opt/cni/bin"
+
+  K8S_OIDC=""
 }
 
-# Ensure everything is OK, docker is running and we're root
 kube::multinode::log_variables() {
 
   # Output the value of the variables
-  kube::log::status "MASTER_IP is set to: $MASTER_IP"
-  kube::log::status "K8S_VERSION is set to: $K8S_VERSION"
-  kube::log::status "REGISTRY is set to: $REGISTRY"
-  kube::log::status "IP_POOL is set to: $IP_POOL"
-  kube::log::status "SERVICE_NETWORK is set to: $SERVICE_NETWORK"
-  kube::log::status "CLUSTER_DOMAIN is set to: $CLUSTER_DOMAIN"
-  kube::log::status "Authorization mode is set to: $K8S_AUTHZ_MODE"
-  kube::log::status "OPENID is set to: $OPENID"
-  kube::log::status "--------------------------------------------"
-  kube::log::status "IP_ADDRESS is set to: $IP_ADDRESS"
-  kube::log::status "ETCD_IP is set to: $ETCD_IP"
-  kube::log::status "ETCD_VERSION is set to: $ETCD_VERSION"
-  kube::log::status "K8S_ARCH is set to: $K8S_ARCH"
-  kube::log::status "--------------------------------------------"
-  kube::log::status "SRC_DATA_DIR is set to: $SRC_DATA_DIR"
-  kube::log::status "K8S_KUBESRV_DIR is set to: $K8S_KUBESRV_DIR"
-  kube::log::status "K8S_KUBELET_DIR is set to: $K8S_KUBELET_DIR"
-  kube::log::status "K8S_LOG_DIR is set to: $K8S_LOG_DIR"
-  kube::log::status "--------------------------------------------"
+  local v val pval
+  for v in MASTER_IP K8S_VERSION REGISTRY IP_POOL SERVICE_NETWORK CLUSTER_DOMAIN K8S_AUTHZ_MODE OPENID \
+    separator IP_ADDRESS ETCD_IP ETCD_VERSION K8S_ARCH \
+    separator SRC_DATA_DIR K8S_KUBESRV_DIR K8S_KUBELET_DIR K8S_LOG_DIR; do
+    if [ $v == separator ]; then
+      kube::log::status "--------------------------------------------"
+    else
+      eval val=\${$v}
+      if [ $val != ${DEFAULT[$v]} ]; then
+        pval=$(tput setaf 2)${val}$(tput setaf 9)
+      else
+        pval=$val
+      fi
+      kube::log::status "$v is set to: $pval"
+    fi
+  done
 }
 
 # Start etcd on the master node
