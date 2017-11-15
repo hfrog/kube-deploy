@@ -6,6 +6,9 @@ metadata:
   labels:
     role: toolbox
 spec:
+  selector:
+    matchLabels:
+      name: toolbox
   template:
     spec:
       containers:
