@@ -37,6 +37,7 @@ kube::cni::add_option() {
 
 kube::cni::restart_docker() {
   systemctl daemon-reload
+  systemctl enable docker
   systemctl restart docker
   kube::log::status "Restarted docker with service file modification(s)"
 }
