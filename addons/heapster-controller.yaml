@@ -6,7 +6,7 @@ metadata:
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
 ---
-apiVersion: apps/v1beta2
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: heapster
@@ -24,7 +24,6 @@ spec:
     metadata:
       labels:
         k8s-app: heapster
-        version: v1.5.0-beta.0
       annotations:
         scheduler.alpha.kubernetes.io/critical-pod: ''
     spec:
