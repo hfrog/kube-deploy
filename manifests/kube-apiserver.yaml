@@ -22,7 +22,7 @@ spec:
       --insecure-port=0
       --secure-port=443
       --etcd-servers=http://ETCD_IP:2379
-      --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny,AlwaysPullImages
+      --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny,AlwaysPullImages
       --client-ca-file=K8S_CERTS_DIR/ca.crt
       --basic-auth-file=K8S_AUTH_DIR/basic_auth.csv
       --min-request-timeout=300
