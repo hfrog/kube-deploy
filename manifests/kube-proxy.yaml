@@ -38,6 +38,7 @@ spec:
       --cluster-cidr=IP_POOL
       --iptables-sync-period=1m
       --iptables-min-sync-period=10s
+      --hostname-override=IP_ADDRESS
       --v=2 >K8S_LOG_DIR/kube-proxy.log 2>&1
     # --resource-container=""
     resources:
