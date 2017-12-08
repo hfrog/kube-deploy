@@ -1,5 +1,5 @@
 # vim: set sw=2 :
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2017 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # Configuration to deploy release version of the Dashboard UI compatible with
-# Kubernetes 1.7.
+# Kubernetes 1.8.
 #
 # Example usage: kubectl create -f <this_file>
 # https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
@@ -150,31 +150,32 @@ metadata:
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
 rules:
-  # Allow Dashboard to create and watch for changes of 'kubernetes-dashboard-key-holder' secret.
+  # Allow Dashboard to create 'kubernetes-dashboard-key-holder' secret.
 - apiGroups: [""]
   resources: ["secrets"]
-  verbs: ["create", "watch"]
+  verbs: ["create"]
+  # Allow Dashboard to create 'kubernetes-dashboard-settings' config map.
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["create"]
+  # Allow Dashboard to get, update and delete Dashboard exclusive secrets.
 - apiGroups: [""]
   resources: ["secrets"]
-  # Allow Dashboard to get, update and delete 'kubernetes-dashboard-key-holder' secret.
   resourceNames: ["kubernetes-dashboard-key-holder", "kubernetes-dashboard-certs"]
-  verbs: ["get", "update", "patch", "delete"]
+  verbs: ["get", "update", "delete"]
+  # Allow Dashboard to get and update 'kubernetes-dashboard-settings' config map.
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["kubernetes-dashboard-settings"]
+  verbs: ["get", "update"]
   # Allow Dashboard to get metrics from heapster.
 - apiGroups: [""]
   resources: ["services"]
   resourceNames: ["heapster"]
   verbs: ["proxy"]
-
----
-
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: kubernetes-dashboard-minimal
-  labels:
-    addonmanager.kubernetes.io/mode: Reconcile
-rules:
-- nonResourceURLs: ["/swagger*"]
+- apiGroups: [""]
+  resources: ["services/proxy"]
+  resourceNames: ["heapster", "http:heapster:", "https:heapster:"]
   verbs: ["get"]
 
 ---
@@ -189,23 +190,6 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: kubernetes-dashboard-minimal
-subjects:
-- kind: ServiceAccount
-  name: kubernetes-dashboard
-  namespace: kube-system
-
----
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: kubernetes-dashboard-minimal
-  labels:
-    addonmanager.kubernetes.io/mode: Reconcile
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
   name: kubernetes-dashboard-minimal
 subjects:
 - kind: ServiceAccount
@@ -238,15 +222,19 @@ spec:
     spec:
       containers:
       - name: kubernetes-dashboard
-        image: gcr.io/google_containers/kubernetes-dashboard-amd64:v1.7.1
+        image: gcr.io/google_containers/kubernetes-dashboard-amd64:v1.8.0
         command:
         - /dashboard
-        - --insecure-bind-address=0.0.0.0
         - --bind-address=0.0.0.0
-        - --tls-key-file=/certs/dashboard.key
-        - --tls-cert-file=/certs/dashboard.crt
+        - --default-cert-dir=/certs
+        - --tls-key-file=dashboard.key
+        - --tls-cert-file=dashboard.crt
         #- --logtostderr=false
         #- --log_dir=K8S_LOG_DIR/
+        # Uncomment the following line to manually specify Kubernetes API server Host
+        # If not specified, Dashboard will attempt to auto discover the API server and connect
+        # to it. Uncomment only if the default does not work.
+        # - --apiserver-host=http://my-address:port
         resources:
           # keep request = limit to keep this container in guaranteed class
           limits:
