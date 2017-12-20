@@ -41,7 +41,7 @@ kube::multinode::init_defaults() {
                 | awk '{print $5}' | head -1) | awk '{print $4}' | cut -d/ -f1 | head -1)
   DEFAULT[MASTER_IP]=${DEFAULT[IP_ADDRESS]}
   DEFAULT[ETCD_IP]=${DEFAULT[MASTER_IP]}
-  DEFAULT[K8S_VERSION]="v1.8.5"
+  DEFAULT[K8S_VERSION]="v1.9.0"
   DEFAULT[REGISTRY]="gcr.io/google_containers"
   DEFAULT[IP_POOL]="10.168.0.0/16"
   DEFAULT[SERVICE_NETWORK]="10.24.0"
