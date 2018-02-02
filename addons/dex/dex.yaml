@@ -112,7 +112,7 @@ spec:
       serviceAccountName: dex
       containers:
       - name: dex
-        image: hfrog/dex:v2.7.1
+        image: quay.io/coreos/dex:v2.9.0
         command:
         - /bin/sh
         - -c
@@ -228,7 +228,7 @@ spec:
     spec:
       containers:
       - name: dex-web-app
-        image: hfrog/dex-example-app:v2.6.1
+        image: hfrog/dex-example-app:v2.9.0
         command:
         - /bin/sh
         - -c
