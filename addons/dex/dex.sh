@@ -2,7 +2,7 @@
 # vim: set sw=2 :
 
 dex::init() {
-  if [[ $OPENID == true ]]; then
+  if kube::helpers::is_true $OPENID; then
     kube::log::status "dex init"
     K8S_OIDC="\
       --oidc-issuer-url=https://$MASTER_IP:32000 \

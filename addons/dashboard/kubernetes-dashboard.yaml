@@ -41,15 +41,30 @@ data:
     set -o nounset
     set -o pipefail
     shopt -s expand_aliases
+    shopt -s nocasematch
 
     error_report() {
       echo "errexit on line $(caller)" >&2
     }
 
+    is_true() {
+      local return=1
+      case $1 in
+        y|yes|true)
+          return=0
+          ;;
+        *)
+          return=1
+          ;;
+      esac
+      return $return
+    }
+
+
     trap error_report ERR
 
     DEBUG=${DEBUG:-false}
-    if [[ $DEBUG == true ]]; then
+    if is_true $DEBUG; then
       set -x
     fi
 

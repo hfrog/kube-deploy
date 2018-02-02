@@ -112,7 +112,7 @@ MountFlags=shared
 EOF
 
     # Check if restart needed
-    if [[ $restart == true ]]; then
+    if kube::helpers::is_true $restart; then
       kube::cni::restart_docker
     fi
   fi

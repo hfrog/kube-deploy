@@ -19,15 +19,29 @@ set -o errexit
 set -o errtrace
 set -o nounset
 set -o pipefail
+shopt -s nocasematch
 
 error_report() {
   echo "errexit on line $(caller)" >&2
 }
 
+kube::helpers::is_true() {
+  local return=1
+  case $1 in
+    y|yes|true)
+      return=0
+      ;;
+    *)
+      return=1
+      ;;
+  esac
+  return $return
+}
+
 trap error_report ERR
 
-DEBUG=${DEBUG:-false}
-if [[ $DEBUG == true ]]; then
+DEBUG=${DEBUG:-NO}
+if kube::helpers::is_true $DEBUG; then
   set -x
 fi
 
@@ -46,13 +60,13 @@ kube::multinode::init_defaults() {
   DEFAULT[IP_POOL]="10.168.0.0/16"
   DEFAULT[SERVICE_NETWORK]="10.24.0"
   DEFAULT[CLUSTER_DOMAIN]=cluster.local
-  DEFAULT[RBAC]=true
+  DEFAULT[RBAC]=YES
   DEFAULT[K8S_AUTHZ_MODE]=RBAC
-  DEFAULT[OPENID]=false
+  DEFAULT[OPENID]=NO
   DEFAULT[RESTART_POLICY]="unless-stopped"
   DEFAULT[ETCD_VERSION]="3.0.17"
   DEFAULT[TIMEOUT_FOR_SERVICES]=20
-  DEFAULT[USE_CONTAINERIZED]="true"
+  DEFAULT[USE_CONTAINERIZED]=YES
   DEFAULT[KUBELET_RESERVE_MEMORY]=0 # guess is 4000Mi for real servers
   DEFAULT[SRC_DATA_DIR]="/root/kube-deploy-data"
   DEFAULT[K8S_ARCH]=$(kube::helpers::host_arch)
@@ -100,7 +114,7 @@ kube::multinode::main() {
 
   SRC_CERTS_DIR=$SRC_DATA_DIR/certs
 
-  if [[ $USE_CONTAINERIZED == true ]]; then
+  if kube::helpers::is_true $USE_CONTAINERIZED; then
     ROOTFS_MOUNT="-v /:/rootfs:ro"
     KUBELET_MOUNT="-v $K8S_KUBELET_DIR:$K8S_KUBELET_DIR:slave"
     CONTAINERIZED_FLAG="--containerized"
@@ -110,7 +124,7 @@ kube::multinode::main() {
     CONTAINERIZED_FLAG=""
   fi
 
-  if [[ $RBAC == true ]]; then
+  if kube::helpers::is_true $RBAC; then
     K8S_AUTHZ_MODE=RBAC
   else
     K8S_AUTHZ_MODE=AlwaysAllow
@@ -139,7 +153,8 @@ kube::multinode::main() {
 kube::multinode::log_variables() {
 
   # Output the value of the variables
-  local v val pval
+  local bool v val pval
+  bool='DEBUG OPENID RBAC USE_CONTAINERIZED' # whitespaced list
   for v in MASTER_IP K8S_VERSION REGISTRY IP_POOL SERVICE_NETWORK CLUSTER_DOMAIN K8S_AUTHZ_MODE OPENID \
     separator IP_ADDRESS ETCD_IP ETCD_VERSION K8S_ARCH \
     separator SRC_DATA_DIR K8S_KUBESRV_DIR K8S_KUBELET_DIR K8S_LOG_DIR; do
@@ -147,11 +162,16 @@ kube::multinode::log_variables() {
       kube::log::status "--------------------------------------------"
     else
       eval val=\${$v}
+      if echo $bool | grep -qws $v; then
+        val=$(kube::helpers::is_true $val && echo YES || echo NO)
+      fi
       if [ $val != ${DEFAULT[$v]} ]; then
+        # value with color (green) highlight
         pval=$(tput setaf 2)${val}$(tput setaf 9)
       else
         pval=$val
       fi
+
       kube::log::status "$v is set to: $pval"
     fi
   done
@@ -405,7 +425,7 @@ kube::helpers::confirm() {
 
   local return=1
   case $input in
-    [nN]*)
+    n*)
       return=1
       ;;
     *)
