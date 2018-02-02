@@ -18,7 +18,7 @@ source $(dirname $BASH_SOURCE)/include/common.sh
 
 kube::multinode::main
 
-kube::multinode::log_variables
+kube::multinode::log_master_variables
 
 if kube::helpers::confirm "Continue? [Y/n]"; then
   kube::log::status "Continue"

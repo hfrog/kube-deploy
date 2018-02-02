@@ -155,9 +155,7 @@ kube::multinode::log_variables() {
   # Output the value of the variables
   local bool v val pval
   bool='DEBUG OPENID RBAC USE_CONTAINERIZED' # whitespaced list
-  for v in MASTER_IP K8S_VERSION REGISTRY IP_POOL SERVICE_NETWORK CLUSTER_DOMAIN K8S_AUTHZ_MODE OPENID \
-    separator IP_ADDRESS ETCD_IP ETCD_VERSION K8S_ARCH \
-    separator SRC_DATA_DIR K8S_KUBESRV_DIR K8S_KUBELET_DIR K8S_LOG_DIR; do
+  for v in $1; do
     if [ $v == separator ]; then
       kube::log::status "--------------------------------------------"
     else
@@ -175,6 +173,19 @@ kube::multinode::log_variables() {
       kube::log::status "$v is set to: $pval"
     fi
   done
+}
+
+kube::multinode::log_master_variables() {
+  kube::multinode::log_variables "MASTER_IP K8S_VERSION REGISTRY IP_POOL
+        SERVICE_NETWORK CLUSTER_DOMAIN K8S_AUTHZ_MODE OPENID
+        separator IP_ADDRESS ETCD_IP ETCD_VERSION K8S_ARCH
+        separator SRC_DATA_DIR K8S_KUBESRV_DIR K8S_KUBELET_DIR K8S_LOG_DIR"
+}
+
+kube::multinode::log_worker_variables() {
+  kube::multinode::log_variables "MASTER_IP K8S_VERSION REGISTRY IP_POOL
+        separator IP_ADDRESS K8S_ARCH
+        separator SRC_DATA_DIR K8S_KUBESRV_DIR K8S_KUBELET_DIR K8S_LOG_DIR"
 }
 
 # Start etcd on the master node

@@ -23,7 +23,7 @@ fi
 
 kube::multinode::main
 
-kube::multinode::log_variables
+kube::multinode::log_worker_variables
 
 if kube::helpers::confirm "Continue? [Y/n]"; then
   kube::log::status "Continue"
