@@ -1,6 +1,6 @@
-# Calico Version v2.6.1
-# https://docs.projectcalico.org/v2.6/releases#v2.6.1
-# https://docs.projectcalico.org/v2.6/getting-started/kubernetes/installation/rbac.yaml
+# Calico Version v3.0.1
+# https://docs.projectcalico.org/v3.0/releases#v3.0.1
+# https://docs.projectcalico.org/v3.0/getting-started/kubernetes/installation/rbac.yaml
 
 ---
 
@@ -10,7 +10,6 @@ metadata:
   name: calico-kube-controllers
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
-  namespace: kube-system
 rules:
   - apiGroups:
     - ""
@@ -19,6 +18,7 @@ rules:
       - pods
       - namespaces
       - networkpolicies
+      - nodes
     verbs:
       - watch
       - list
@@ -46,7 +46,6 @@ metadata:
   name: calico-node
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
-  namespace: kube-system
 rules:
   - apiGroups: [""]
     resources:
