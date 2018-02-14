@@ -5,17 +5,17 @@
 ## Features
 
 * Inspired by and based on <https://github.com/kubernetes/kube-deploy/docker-multinode>
-* Kubernetes v1.7.0
-* Self-hosted
+* Self-hosted Kubernetes
 * Calico networking
 * Dashboard
 * RBAC
+* Optional OpenID with dex
 * Useful tools toolbox and http-responder
 * By default, only user admin:admin is accepted
 
 ### Prerequisites
 
-UNIX system with docker running. Tested on CoreOS 1451.2.0
+UNIX system with docker running. Tested on CoreOS
 
 ### Master node deployment
 
