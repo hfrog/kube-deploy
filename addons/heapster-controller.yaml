@@ -6,6 +6,30 @@ metadata:
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: heapster-config
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+data:
+  NannyConfiguration: |-
+    apiVersion: nannyconfig/v1alpha1
+    kind: NannyConfiguration
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventer-config
+  namespace: kube-system
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
+data:
+  NannyConfiguration: |-
+    apiVersion: nannyconfig/v1alpha1
+    kind: NannyConfiguration
+---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -28,7 +52,7 @@ spec:
         scheduler.alpha.kubernetes.io/critical-pod: ''
     spec:
       containers:
-        - image: gcr.io/google_containers/heapster-amd64:v1.5.0-beta.0
+        - image: gcr.io/google_containers/heapster-amd64:v1.5.0
           name: heapster
           command:
             - /heapster
@@ -41,20 +65,21 @@ spec:
               scheme: HTTP
             initialDelaySeconds: 180
             timeoutSeconds: 5
-        - image: gcr.io/google_containers/heapster-amd64:v1.5.0-beta.0
+        - image: gcr.io/google_containers/heapster-amd64:v1.5.0
           name: eventer
           command:
             - /eventer
             - --source=kubernetes:''
             - --sink=influxdb:http://monitoring-influxdb:8086
-        - image: gcr.io/google_containers/addon-resizer:1.7
+        - image: gcr.io/google_containers/addon-resizer:1.8.1
           name: heapster-nanny
           command:
             - /pod_nanny
+            - --config-dir=/etc/config
             - --cpu=80m
-            - --extra-cpu=0.5m
+            - --extra-cpu=2m
             - --memory=140Mi
-            - --extra-memory=4Mi
+            - --extra-memory=2Mi
             - --threshold=5
             - --deployment=heapster
             - --container=heapster
@@ -76,14 +101,18 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-        - image: gcr.io/google_containers/addon-resizer:1.7
+          volumeMounts:
+          - name: heapster-config-volume
+            mountPath: /etc/config
+        - image: gcr.io/google_containers/addon-resizer:1.8.1
           name: eventer-nanny
           command:
             - /pod_nanny
+            - --config-dir=/etc/config
             - --cpu=100m
             - --extra-cpu=0m
             - --memory=190Mi
-            - --extra-memory=500Ki
+            - --extra-memory=2Mi
             - --threshold=5
             - --deployment=heapster
             - --container=eventer
@@ -105,6 +134,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+          volumeMounts:
+          - name: eventer-config-volume
+            mountPath: /etc/config
+      volumes:
+        - name: heapster-config-volume
+          configMap:
+            name: heapster-config
+        - name: eventer-config-volume
+          configMap:
+            name: eventer-config
       serviceAccountName: heapster
       tolerations:
         - key: "CriticalAddonsOnly"

@@ -16,4 +16,3 @@ spec:
       targetPort: 8086
   selector: 
     k8s-app: influxGrafana
-
