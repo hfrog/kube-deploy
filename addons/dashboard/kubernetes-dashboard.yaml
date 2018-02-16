@@ -148,11 +148,11 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: kubernetes-dashboard
+  namespace: kube-system
   labels:
     k8s-app: kubernetes-dashboard
     addonmanager.kubernetes.io/mode: Reconcile
-  name: kubernetes-dashboard
-  namespace: kube-system
 
 ---
 # ------------------- Dashboard Role & Role Binding ------------------- #
@@ -217,11 +217,11 @@ subjects:
 kind: Deployment
 apiVersion: apps/v1beta2
 metadata:
+  name: kubernetes-dashboard
+  namespace: kube-system
   labels:
     k8s-app: kubernetes-dashboard
     addonmanager.kubernetes.io/mode: Reconcile
-  name: kubernetes-dashboard
-  namespace: kube-system
 spec:
   replicas: 1
   revisionHistoryLimit: 0
@@ -295,11 +295,11 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
+  name: kubernetes-dashboard
+  namespace: kube-system
   labels:
     k8s-app: kubernetes-dashboard
     addonmanager.kubernetes.io/mode: Reconcile
-  name: kubernetes-dashboard
-  namespace: kube-system
 spec:
   ports:
     - port: 443

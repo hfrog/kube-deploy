@@ -3,6 +3,7 @@ apiVersion: apps/v1beta2
 kind: DaemonSet
 metadata:
   name: resource-reserver
+  namespace: kube-system
   labels:
     role: resource-reserver
     addonmanager.kubernetes.io/mode: Reconcile
