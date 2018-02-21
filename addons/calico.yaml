@@ -3,7 +3,7 @@
 # https://docs.projectcalico.org/v3.0/releases#v3.0.2
 # This manifest includes the following component versions:
 #   calico/node:v3.0.2
-#   calico/cni:v2.0.0
+#   calico/cni:v2.0.1
 #   calico/kube-controllers:v2.0.0
 # https://docs.projectcalico.org/v3.0/getting-started/kubernetes/installation/hosted/calico.yaml
 
@@ -218,7 +218,7 @@ spec:
         # This container installs the Calico CNI binaries
         # and CNI network config file on each node.
         - name: install-cni
-          image: quay.io/calico/cni:v2.0.0
+          image: quay.io/calico/cni:v2.0.1
           command: ["/install-cni.sh"]
           env:
             # Name of the CNI config file to create.
