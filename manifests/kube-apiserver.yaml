@@ -36,7 +36,7 @@ spec:
       --service-account-key-file=K8S_KEYS_DIR/kubernetes-master.key
       --authorization-mode=K8S_AUTHZ_MODE
       --allow-privileged=true
-      --anonymous-auth=false
+      --anonymous-auth=true
       --profiling=false
       --audit-log-path=K8S_LOG_DIR/kube-apiserver-audit.log
       --audit-log-maxage=0
@@ -47,16 +47,14 @@ spec:
     resources:
       requests:
         cpu: 250m
-# probe doesn't work because of authn
-# https://github.com/kubernetes/kubernetes/issues/43540
-#    livenessProbe:
-#      httpGet:
-#        host: 127.0.0.1
-#        port: 443
-#        path: /healthz
-#        scheme: HTTPS
-#      initialDelaySeconds: 15
-#      timeoutSeconds: 15
+    livenessProbe:
+      httpGet:
+        host: 127.0.0.1
+        port: 443
+        path: /healthz
+        scheme: HTTPS
+      initialDelaySeconds: 15
+      timeoutSeconds: 15
     volumeMounts:
     - name: data
       mountPath: K8S_KUBESRV_DIR
