@@ -1,3 +1,4 @@
+# vim: set sw=2 :
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -58,6 +59,13 @@ spec:
             - /heapster
             - --source=kubernetes:https://kubernetes.default?kubeletHttps=true&kubeletPort=10250&useServiceAccount=true
             - --sink=influxdb:http://monitoring-influxdb.kube-system.svc:8086
+          resources:
+            limits:
+              cpu: 112m
+              memory: 172Mi
+            requests:
+              cpu: 112m
+              memory: 172Mi
           livenessProbe:
             httpGet:
               path: /healthz
@@ -65,26 +73,43 @@ spec:
               scheme: HTTP
             initialDelaySeconds: 180
             timeoutSeconds: 5
+          volumeMounts:
+          - name: varlog
+            mountPath: K8S_LOG_DIR
+            readOnly: false
         - image: gcr.io/google_containers/heapster-amd64:v1.5.0
           name: eventer
           command:
             - /eventer
             - --source=kubernetes:''
             - --sink=influxdb:http://monitoring-influxdb:8086
+          resources:
+            limits:
+              cpu: 116m
+              memory: 222Mi
+            requests:
+              cpu: 116m
+              memory: 222Mi
+          volumeMounts:
+          - name: varlog
+            mountPath: K8S_LOG_DIR
+            readOnly: false
         - image: gcr.io/google_containers/addon-resizer:1.8.1
           name: heapster-nanny
           command:
+            - /bin/sh
+            - -c
             - /pod_nanny
-            - --config-dir=/etc/config
-            - --cpu=80m
-            - --extra-cpu=2m
-            - --memory=140Mi
-            - --extra-memory=2Mi
-            - --threshold=5
-            - --deployment=heapster
-            - --container=heapster
-            - --poll-period=300000
-            - --estimator=exponential
+              --config-dir=/etc/config
+              --cpu=80m
+              --extra-cpu=2m
+              --memory=140Mi
+              --extra-memory=2Mi
+              --threshold=5
+              --deployment=heapster
+              --container=heapster
+              --poll-period=300000
+              --estimator=exponential >K8S_LOG_DIR/heapster-nanny.log 2>&1
           resources:
             limits:
               cpu: 50m
@@ -104,20 +129,25 @@ spec:
           volumeMounts:
           - name: heapster-config-volume
             mountPath: /etc/config
+          - name: varlog
+            mountPath: K8S_LOG_DIR
+            readOnly: false
         - image: gcr.io/google_containers/addon-resizer:1.8.1
           name: eventer-nanny
           command:
+            - /bin/sh
+            - -c
             - /pod_nanny
-            - --config-dir=/etc/config
-            - --cpu=100m
-            - --extra-cpu=0m
-            - --memory=190Mi
-            - --extra-memory=2Mi
-            - --threshold=5
-            - --deployment=heapster
-            - --container=eventer
-            - --poll-period=300000
-            - --estimator=exponential
+              --config-dir=/etc/config
+              --cpu=100m
+              --extra-cpu=1m
+              --memory=190Mi
+              --extra-memory=2Mi
+              --threshold=5
+              --deployment=heapster
+              --container=eventer
+              --poll-period=300000
+              --estimator=exponential >K8S_LOG_DIR/eventer-nanny.log 2>&1
           resources:
             limits:
               cpu: 50m
@@ -137,6 +167,9 @@ spec:
           volumeMounts:
           - name: eventer-config-volume
             mountPath: /etc/config
+          - name: varlog
+            mountPath: K8S_LOG_DIR
+            readOnly: false
       volumes:
         - name: heapster-config-volume
           configMap:
@@ -144,6 +177,9 @@ spec:
         - name: eventer-config-volume
           configMap:
             name: eventer-config
+        - name: varlog
+          hostPath:
+            path: K8S_LOG_DIR
       serviceAccountName: heapster
       tolerations:
         - key: "CriticalAddonsOnly"
