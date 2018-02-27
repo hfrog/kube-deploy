@@ -252,8 +252,8 @@ pki::get_cert_bundle_from_master() {
   local bundle=$1
   if [[ ! -v got_bundle || ! -f $bundle ]]; then
     # get tls cert bundle from the https cerver
-    if ! openssl s_client -connect $MASTER_IP:443 -showcerts </dev/null 2>/dev/null >$bundle; then
-      kube::log::fatal "Openssl can't connect to master $MASTER_IP:443"
+    if ! openssl s_client -connect $MASTER_IP:$API_SECURE_PORT -showcerts </dev/null 2>/dev/null >$bundle; then
+      kube::log::fatal "Openssl can't connect to master $MASTER_IP:$API_SECURE_PORT"
     fi
     got_bundle=1
   fi

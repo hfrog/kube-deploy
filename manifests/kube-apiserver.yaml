@@ -19,8 +19,8 @@ spec:
     - -c
     - /hyperkube apiserver
       --service-cluster-ip-range=SERVICE_NETWORK.1/24
-      --insecure-port=0
-      --secure-port=443
+      --insecure-port=API_PORT
+      --secure-port=API_SECURE_PORT
       --etcd-servers=http://ETCD_IP:2379
       --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,DenyEscalatingExec,SecurityContextDeny,AlwaysPullImages
       --client-ca-file=K8S_CERTS_DIR/ca.crt
@@ -36,7 +36,7 @@ spec:
       --service-account-key-file=K8S_KEYS_DIR/kubernetes-master.key
       --authorization-mode=K8S_AUTHZ_MODE
       --allow-privileged=true
-      --anonymous-auth=true
+      --anonymous-auth=API_ANONYMOUS_AUTH
       --profiling=false
       --audit-log-path=K8S_LOG_DIR/kube-apiserver-audit.log
       --audit-log-maxage=0
@@ -50,7 +50,7 @@ spec:
     livenessProbe:
       httpGet:
         host: 127.0.0.1
-        port: 443
+        port: API_SECURE_PORT
         path: /healthz
         scheme: HTTPS
       initialDelaySeconds: 15
