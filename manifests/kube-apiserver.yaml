@@ -50,9 +50,9 @@ spec:
     livenessProbe:
       httpGet:
         host: 127.0.0.1
-        port: API_SECURE_PORT
+        port: API_LIVECHECK_PORT
         path: /healthz
-        scheme: HTTPS
+        scheme: API_LIVECHECK_SCHEME
       initialDelaySeconds: 15
       timeoutSeconds: 15
     volumeMounts:
