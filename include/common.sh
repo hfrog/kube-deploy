@@ -101,11 +101,7 @@ kube::multinode::main() {
 
   kube::multinode::init_defaults
 
-  for v in IP_ADDRESS MASTER_IP ETCD_IP K8S_ARCH K8S_VERSION \
-        REGISTRY IP_POOL SERVICE_NETWORK CLUSTER_DOMAIN \
-        API_PORT API_SECURE_PORT API_ANONYMOUS_AUTH API_LIVECHECK_PORT API_LIVECHECK_SCHEME RBAC OPENID \
-        RESTART_POLICY TIMEOUT_FOR_SERVICES USE_CONTAINERIZED KUBELET_RESERVE_MEMORY ETCD_VERSION \
-        SRC_DATA_DIR K8S_KUBESRV_DIR K8S_KUBELET_DIR K8S_LOG_DIR; do
+  for v in ${!DEFAULT[@]}; do
     eval $v=\${$v:-\${DEFAULT[$v]}}
   done
 
@@ -136,6 +132,7 @@ kube::multinode::main() {
     K8S_AUTHZ_MODE=AlwaysAllow
     # disable anonymous auth and enable insecure port
     # see https://github.com/kubernetes/kubernetes/pull/38706
+    # and https://github.com/kubernetes/kubernetes/pull/32386
     API_ANONYMOUS_AUTH=false
     API_PORT=8080
     # modify appropriately apiserver's liveness check
@@ -166,17 +163,17 @@ kube::multinode::main() {
 kube::multinode::log_variables() {
 
   # Output the value of the variables
-  local bool v val pval
-  bool='DEBUG OPENID RBAC USE_CONTAINERIZED' # whitespaced list
+  local bool_vars v val pval
+  bool_vars='DEBUG OPENID RBAC USE_CONTAINERIZED' # whitespaced list
   for v in $1; do
-    if [ $v == separator ]; then
+    if [[ $v == separator ]]; then
       kube::log::status "--------------------------------------------"
     else
       eval val=\${$v}
-      if echo $bool | grep -qws $v; then
+      if echo $bool_vars | grep -qws $v; then
         val=$(kube::helpers::is_true $val && echo YES || echo NO)
       fi
-      if [ $val != ${DEFAULT[$v]} ]; then
+      if [[ $val != ${DEFAULT[$v]} ]]; then
         # value with color (green) highlight
         pval=$(tput setaf 2)${val}$(tput setaf 9)
       else
@@ -384,7 +381,7 @@ kube::multinode::create_master_manifests() {
   kube::log::status "Creating master manifests"
   kube::util::assure_dir $K8S_MANIFESTS_DIR
   for f in manifests/*; do
-    [ -f $f ] || continue
+    [[ -f $f ]] || continue
     kube::util::expand_vars $f > $K8S_MANIFESTS_DIR/$(basename $f)
   done
 }
@@ -545,16 +542,18 @@ kube::multinode::turndown() {
   return 0
 }
 
+kube::log::timestamp() {
+  echo -n $(date +"[%Y%m%d %H:%M:%S]")
+}
+
 # Print a status line. Formatted to show up in a stream of output.
 kube::log::status() {
-  local timestamp=$(date +"[%m%d %H:%M:%S]")
-  echo "+++ $timestamp $1"
+  echo "+++ $(kube::log::timestamp) ${1:-}"
 }
 
 # Log an error and exit
 kube::log::fatal() {
-  local timestamp=$(date +"[%m%d %H:%M:%S]")
-  echo "!!! $timestamp ${1-}" >&2
+  echo "!!! $(kube::log::timestamp) ${1:-}" >&2
   exit 1
 }
 
